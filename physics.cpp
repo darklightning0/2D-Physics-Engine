@@ -8,8 +8,8 @@ void handleTransformtions(float deltaTime, std::vector<Object*> objects){
     for(Object*& obj : objects){
 
         if(obj->isStatic) continue;
-
-        obj->linearVelocity = obj->linearVelocity + (obj->force / obj->mass) * deltaTime;
+        Vector acceleration = obj->force / obj->mass;
+        obj->linearVelocity = obj->linearVelocity + acceleration * deltaTime;
         obj->position = obj->position + obj->linearVelocity * deltaTime;
         obj->rotation = obj->rotation + obj->rotationalVelocity * deltaTime;
 
@@ -36,64 +36,59 @@ void handleGravity(float deltaTime, Object* obj, Vector gravity){
 
 void handleCollisions(std::vector<Object*> objects, Object* obj1){
 
-    sf::Shape* shape1 = obj1->shape;
+    for(Object* obj2 : objects){
 
-    for(int j = 0; j < objects.size(); j++){
+        if(obj1 == obj2 || (obj1->isStatic && obj2->isStatic)){
 
-        if(objects[j] == obj1) continue;
+            continue; 
 
-        sf::Shape* shape2 = objects[j]->shape;
+        }
 
-        sf::CircleShape* circle1 = dynamic_cast<sf::CircleShape*>(shape1);
-        sf::CircleShape* circle2 = dynamic_cast<sf::CircleShape*>(shape2);
+        Vector normal;
+        float depth;
 
-        sf::RectangleShape* rect1 = dynamic_cast<sf::RectangleShape*>(shape1);
-        sf::RectangleShape* rect2 = dynamic_cast<sf::RectangleShape*>(shape2);
+       if(collide(obj1, obj2, normal, depth)){
 
-        if(circle1 && circle2){
+        if(obj1->isStatic){
 
-            Vector normal = Vector(0.f, 0.f);
-            float depth = 0.f;
+            obj2->Move(normal * depth);
 
-            if(intersectCircles(circle1, circle2, normal, depth)){
+        }
+        else if(obj2->isStatic){
 
-                obj1->Move(normal * (depth / 2.f) * -1.f);
-                objects[j]->Move(normal * depth / 2.f);
+            obj1->Move(-normal * depth);
 
-                resolveCollision(obj1, objects[j], normal, depth);
+        }else{
 
-            }
+            obj1->Move(-normal * depth / 2);
+            obj2->Move(normal * depth / 2);
 
-        }else if(rect1 && rect2){
+        }
 
-            Vector normal = Vector(0.f, 0.f);
-            float depth = 0.f;
+        resolveCollision(obj1, obj2, normal, depth);
 
-            if(intersectPolygons(getVerticles(rect1), getVerticles(rect2), normal, depth)){
+       }
 
-                obj1->Move(normal * (depth / 2.f) * -1.f);
-                objects[j]->Move(normal * depth / 2.f);
+        
 
-                resolveCollision(obj1, objects[j], normal, depth);
+    }
 
-            }
+}
 
-        }else if((rect1 && circle2) || (rect2 && circle1)){
 
-            Vector normal = Vector(0.f, 0.f);
-            float depth = 0.f;
+void cleaner(std::vector<Object*>& objects, Object& obj) {
 
-            sf::CircleShape* circle = circle1 ? circle1 : circle2;
-            sf::RectangleShape* rect = rect1 ? rect1 : rect2;
+    if (obj.position.x < -50 || obj.position.y > 900 || obj.position.x > 1250){
 
-            if(intersectCirclePolygons(center(circle), circle->getRadius(), getVerticles(rect), normal, depth)){
+        auto index = std::find_if(objects.begin(), objects.end(), [&obj](Object* o){
 
-                obj1->Move(normal * (depth / 2.f) * -1.f);
-                objects[j]->Move(normal * depth / 2.f);
+            return o == &obj;
 
-                resolveCollision(obj1, objects[j], normal, depth);
+        });
 
-            }
+        if (index != objects.end()){
+            delete *index; 
+            objects.erase(index); 
 
         }
 

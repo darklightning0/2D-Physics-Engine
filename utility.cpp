@@ -2,12 +2,12 @@
 #include "Object.hpp"
 #include "utility.hpp"
 
-Vector center(Shape* shape){
+Vector change(Vector2f vector){
 
-    FloatRect bounds = shape->getGlobalBounds();
-    return Vector(bounds.left + bounds.width / 2.f, bounds.top + bounds.height / 2.f);
+    return Vector(vector.x, vector.y);
 
 }
+
 
 float distance(Vector centerA, Vector centerB){
 
@@ -115,8 +115,8 @@ void projectCircle(Vector center, float radius, Vector axis, float& min, float& 
 
 bool intersectCircles(sf::CircleShape* circleA, sf::CircleShape* circleB, Vector& normal, float& depth){
 
-    Vector centerA = center(circleA);
-    Vector centerB = center(circleB);
+    Vector centerA = change(circleA->getPosition());
+    Vector centerB = change(circleB->getPosition());
 
     float dist = distance(centerA, centerB);
     float radii = circleA->getRadius() + circleB->getRadius();
@@ -146,7 +146,7 @@ bool intersectPolygons(std::vector<Vector> verticesA, std::vector<Vector> vertic
         Vector vB = verticesA[(i + 1) % verticesA.size()];
 
         Vector edge = vB - vA;
-        Vector axis = Vector(-edge.y, edge.x);
+        Vector axis = Vector(-edge.y, edge.x).normalize();
 
         float minA, maxA;
         float minB, maxB;
@@ -177,7 +177,7 @@ bool intersectPolygons(std::vector<Vector> verticesA, std::vector<Vector> vertic
         Vector vB = verticesB[(i + 1) % verticesB.size()];
 
         Vector edge = vB - vA;
-        Vector axis = Vector(-edge.y, edge.x);
+        Vector axis = Vector(-edge.y, edge.x).normalize();
 
         float minA, maxA;
         float minB, maxB;
@@ -202,11 +202,6 @@ bool intersectPolygons(std::vector<Vector> verticesA, std::vector<Vector> vertic
 
     }
 
-    depth /= normal.magnitude();
-
-    if(normal.magnitude() == 0) depth = 0;
-    normal.normalize();
-
     Vector centerA = findArithmeticMean(verticesA);
     Vector centerB = findArithmeticMean(verticesB); 
 
@@ -214,26 +209,28 @@ bool intersectPolygons(std::vector<Vector> verticesA, std::vector<Vector> vertic
 
     if(direction.dot(normal) < 0.f){
 
-        normal = -1.f * normal;
+        normal = -normal;
 
     }
+    //std::cout<<"Normal: "<<normal.x<<", "<<normal.y<<" -- Depth: "<<depth<<std::endl;
 
     return true;
 
 }
 
 
-bool intersectCirclePolygons(Vector circleCenter, float circleRadius, std::vector<Vector> vertices, Vector& normal, float& depth){
+bool intersectCirclePolygons(Vector circleCenter, float circleRadius, Vector polygonCenter, std::vector<Vector> vertices, Vector& normal, float& depth){
 
     normal = Vector(0.f, 0.f);
     depth = std::numeric_limits<float>::max();
 
-    Vector axis;
+    Vector axis = Vector(0.f, 0.f);
+    float axisDepth = 0.f;
 
     float minA, maxA;
     float minB, maxB;
 
-    for(size_t i = 0; i < vertices.size(); i++){
+    for(int i = 0; i < vertices.size(); i++){
 
         Vector vA = vertices[i];
         Vector vB = vertices[(i + 1) % vertices.size()];
@@ -250,7 +247,7 @@ bool intersectCirclePolygons(Vector circleCenter, float circleRadius, std::vecto
 
         }
 
-        float axisDepth = std::min(maxB - minA, maxA - minB);
+        axisDepth = std::min(maxB - minA, maxA - minB);
 
         if(axisDepth < depth){
 
@@ -266,7 +263,7 @@ bool intersectCirclePolygons(Vector circleCenter, float circleRadius, std::vecto
     if (cpIndex == -1) return false;
     Vector cp = vertices[cpIndex];
 
-    axis = cp - circleCenter;
+    axis = (cp - circleCenter).normalize();
 
     projectVertices(vertices, axis, minA, maxA);
     projectCircle(circleCenter, circleRadius, axis, minB, maxB);
@@ -277,7 +274,84 @@ bool intersectCirclePolygons(Vector circleCenter, float circleRadius, std::vecto
 
     }
 
-    float axisDepth = std::min(maxB - minA, maxA - minB);
+    axisDepth = std::min(maxB - minA, maxA - minB);
+
+    if(axisDepth < depth){
+
+        depth = axisDepth;
+        normal = axis;
+
+    }
+
+    Vector direction = polygonCenter - circleCenter;
+
+    if(direction.dot(normal) < 0.f){
+
+        normal = -normal;
+
+    }
+
+    return true;
+
+}
+
+
+bool intersectCirclePolygons(Vector circleCenter, float circleRadius, std::vector<Vector> vertices, Vector& normal, float& depth){
+
+    normal = Vector(0.f, 0.f);
+    depth = std::numeric_limits<float>::max();
+
+    Vector axis = Vector(0.f, 0.f);
+    float axisDepth = 0.f;
+
+    float minA, maxA;
+    float minB, maxB;
+
+    for(int i = 0; i < vertices.size(); i++){
+
+        Vector vA = vertices[i];
+        Vector vB = vertices[(i + 1) % vertices.size()];
+
+        Vector edge = vB - vA;
+        axis = Vector(-edge.y, edge.x).normalize();
+
+        projectVertices(vertices, axis, minA, maxA);
+        projectCircle(circleCenter, circleRadius, axis, minB, maxB);
+
+        if(minA >= maxB || minB >= maxA){
+
+            return false;
+
+        }
+
+        axisDepth = std::min(maxB - minA, maxA - minB);
+
+        if(axisDepth < depth){
+
+            depth = axisDepth;
+            normal = axis;
+
+        }
+
+    }
+
+    int cpIndex = findClosestPointOnPolygon(circleCenter, vertices);
+
+    if (cpIndex == -1) return false;
+    Vector cp = vertices[cpIndex];
+
+    axis = (cp - circleCenter).normalize();
+
+    projectVertices(vertices, axis, minA, maxA);
+    projectCircle(circleCenter, circleRadius, axis, minB, maxB);
+
+    if(minA >= maxB || minB >= maxA){
+
+        return false;
+
+    }
+
+    axisDepth = std::min(maxB - minA, maxA - minB);
 
     if(axisDepth < depth){
 
@@ -291,7 +365,7 @@ bool intersectCirclePolygons(Vector circleCenter, float circleRadius, std::vecto
 
     if(direction.dot(normal) < 0.f){
 
-        normal = -1.f * normal;
+        normal = -normal;
 
     }
 
@@ -300,18 +374,78 @@ bool intersectCirclePolygons(Vector circleCenter, float circleRadius, std::vecto
 }
 
 
-void resolveCollision(Object* shape1, Object* shape2, Vector& normal, float& depth){
+bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth){
+
+    normal = normal.zero();
+    depth = 0.f;
+    
+    if(obj1->type == 1){
+
+        if(obj2->type == 1){
+
+            return intersectPolygons(getVerticles(static_cast<sf::RectangleShape*>(obj1->shape)), getVerticles(static_cast<sf::RectangleShape*>(obj2->shape)), normal, depth);
+
+        }
+        else if(obj2->type == 0){
+
+            CircleShape* circle = static_cast<sf::CircleShape*>(obj2->shape);
+            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj1->shape);
+
+            bool result = intersectCirclePolygons(change(circle->getPosition()), circle->getRadius(), change(rect->getPosition()), getVerticles(rect), normal, depth);
+
+            normal = -normal;
+            return result;
+
+        }
+
+    }
+    else if(obj1->type == 0){
+
+        if(obj2->type == 1){
+
+            CircleShape* circle = static_cast<sf::CircleShape*>(obj1->shape);
+            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj2->shape);
+
+            return intersectCirclePolygons(change(circle->getPosition()), circle->getRadius(), change(rect->getPosition()), getVerticles(rect), normal, depth);
+
+        }
+        else if(obj2->type == 0){
+
+            return intersectCircles(static_cast<sf::CircleShape*>(obj1->shape), static_cast<sf::CircleShape*>(obj2->shape), normal, depth);
+
+        }
+
+    }
+
+    return false;
+
+
+}
+
+
+
+
+
+
+void resolveCollision(Object* shape1, Object* shape2, Vector normal, float depth){
 
     Vector relativeVelocity = shape2->linearVelocity - shape1->linearVelocity;
+
+    if(relativeVelocity.dot(normal) > 0){
+
+        return;
+
+    }
+
     float e = std::min(shape1->restitution, shape2->restitution);
 
     float j = -(1.f + e) * relativeVelocity.dot(normal);
-    j = j / ((1.f / shape1->mass) + (1.f / shape2->mass));
+    j = j / (shape1->getInvMass() + shape2->getInvMass());
 
-    shape1->linearVelocity = shape1->linearVelocity - (j / shape1->mass * normal);
-    shape2->linearVelocity = shape2->linearVelocity + (j / shape1->mass * normal);
+    Vector impulse = j * normal;
 
-
+    shape1->linearVelocity = shape1->linearVelocity - impulse * shape1->getInvMass();
+    shape2->linearVelocity = shape2->linearVelocity + impulse * shape2->getInvMass();
 
 }
 

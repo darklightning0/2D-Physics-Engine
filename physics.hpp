@@ -10,5 +10,7 @@ inline void handleGravity(float deltaTime, Object* obj, Vector gravity);
 
 inline void handleCollisions(std::vector<Object*> objects, Object* obj1);
 
+inline void cleaner(std::vector<Object*>& objects, Object& obj);
+
 #endif
 
