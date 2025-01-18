@@ -21,7 +21,7 @@ public:
 
     float mass;
     float restitution;
-    sf::Shape* shape;
+    std::unique_ptr<sf::Shape> shape;
     sf::Color color;
     bool isStatic;
     int type;
@@ -29,8 +29,8 @@ public:
     float density;
     float area;
 
-    Object(float radius, float width, float height, Vector position, Vector linearVelocity, float rotation, float rotationalVelocity, Vector force, float mass, float restitution, sf::Shape* shape, sf::Color color, bool isStatic, int type) 
-        : radius(radius), width(width), height(height), position(position), linearVelocity(linearVelocity), rotation(rotation), rotationalVelocity(rotationalVelocity), force(force), mass(mass), restitution(restitution), shape(shape), color(color), isStatic(isStatic), type(type)
+    Object(float radius, float width, float height, Vector position, Vector linearVelocity, float rotation, float rotationalVelocity, Vector force, float mass, float restitution, std::unique_ptr<sf::Shape> shape, sf::Color color, bool isStatic, int type) 
+        : radius(radius), width(width), height(height), position(position), linearVelocity(linearVelocity), rotation(rotation), rotationalVelocity(rotationalVelocity), force(force), mass(mass), restitution(restitution), shape(std::move(shape)), color(color), isStatic(isStatic), type(type)
     {
         
         shape->setPosition(sf::Vector2f(position.x, position.y));
@@ -38,16 +38,7 @@ public:
 
     }
 
-    ~Object(){
-
-        if(shape){
-
-            delete shape;
-            shape = nullptr;
-
-        }
-
-    }
+    ~Object() = default;
 
     float getInvMass() const{
 

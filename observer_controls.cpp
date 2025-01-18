@@ -1,7 +1,7 @@
 
 #include "World.cpp"
 
-void spawner(Event event, RenderWindow &window, World &world){
+void spawner(Event event, RenderWindow& window, World& world){
 
     if(event.type == Event::KeyPressed){
 
@@ -20,7 +20,7 @@ void spawner(Event event, RenderWindow &window, World &world){
             world.createCircle(world, 20.f, spawnPosition, Vector(0.f, 0.f), 0, 0, Vector(0, 0), 10.f, 0.5f, randomColor, false);
 
         } 
-        else if (event.key.code == Keyboard::Key::Num2){
+        else if(event.key.code == Keyboard::Key::Num2){
 
             world.createRectangle(world, 100.f, 60.f, spawnPosition, Vector(0.f, 0.f), 0, 0, Vector(0, 0), 10.f, 0.5f, randomColor, false);
 

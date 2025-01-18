@@ -4,13 +4,13 @@
 
 #include "Object.hpp"
 
-inline void handleTransformtions(float deltaTime, std::vector<Object*> objects);
+inline void handleTransformtions(float deltaTime, std::vector<std::shared_ptr<Object>>& objects);
 
-inline void handleGravity(float deltaTime, Object* obj, Vector gravity);
+inline void handleGravity(float deltaTime, const std::shared_ptr<Object>& obj, Vector gravity);
 
-inline void handleCollisions(std::vector<Object*> objects, Object* obj1);
+inline void handleCollisions(const std::vector<std::shared_ptr<Object>>& objects, std::shared_ptr<Object> obj1);
 
-inline void cleaner(std::vector<Object*>& objects, Object& obj);
+inline void cleaner(std::vector<std::shared_ptr<Object>>& objects, const std::shared_ptr<Object>& obj);
 
 #endif
 

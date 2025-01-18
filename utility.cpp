@@ -383,13 +383,13 @@ bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth){
 
         if(obj2->type == 1){
 
-            return intersectPolygons(getVerticles(static_cast<sf::RectangleShape*>(obj1->shape)), getVerticles(static_cast<sf::RectangleShape*>(obj2->shape)), normal, depth);
+            return intersectPolygons(getVerticles(static_cast<sf::RectangleShape*>(obj1->shape.get())), getVerticles(static_cast<sf::RectangleShape*>(obj2->shape.get())), normal, depth);
 
         }
         else if(obj2->type == 0){
 
-            CircleShape* circle = static_cast<sf::CircleShape*>(obj2->shape);
-            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj1->shape);
+            CircleShape* circle = static_cast<sf::CircleShape*>(obj2->shape.get());
+            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj1->shape.get());
 
             bool result = intersectCirclePolygons(change(circle->getPosition()), circle->getRadius(), change(rect->getPosition()), getVerticles(rect), normal, depth);
 
@@ -403,15 +403,15 @@ bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth){
 
         if(obj2->type == 1){
 
-            CircleShape* circle = static_cast<sf::CircleShape*>(obj1->shape);
-            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj2->shape);
+            CircleShape* circle = static_cast<sf::CircleShape*>(obj1->shape.get());
+            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj2->shape.get());
 
             return intersectCirclePolygons(change(circle->getPosition()), circle->getRadius(), change(rect->getPosition()), getVerticles(rect), normal, depth);
 
         }
         else if(obj2->type == 0){
 
-            return intersectCircles(static_cast<sf::CircleShape*>(obj1->shape), static_cast<sf::CircleShape*>(obj2->shape), normal, depth);
+            return intersectCircles(static_cast<sf::CircleShape*>(obj1->shape.get()), static_cast<sf::CircleShape*>(obj2->shape.get()), normal, depth);
 
         }
 
@@ -421,10 +421,6 @@ bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth){
 
 
 }
-
-
-
-
 
 
 void resolveCollision(Object* shape1, Object* shape2, Vector normal, float depth){
@@ -449,6 +445,16 @@ void resolveCollision(Object* shape1, Object* shape2, Vector normal, float depth
 
 }
 
+/*
+Vector getAABB(){
+
+    float minX = 0;
+    float minY = 0;
+    float maxX = 0;
+    float maxY = 0;
+
+}
+*/
 
 
 

@@ -5,7 +5,7 @@ using namespace std;
 using namespace sf;
 
 int main(){
-
+  
     RenderWindow window(VideoMode(1200, 800), "Physics Engine");
     window.setFramerateLimit(60);
 
@@ -21,7 +21,7 @@ int main(){
 
     //world.createCircle(world, 20.f, Vector(100.f, 100.f), Vector(0.f, 0.f), 0, 0, Vector(0, 0), 50.f, 1.f, sf::Color::Red, false);
     world.createCircle(world, 20.f, Vector(500.f, 100.f), Vector(0.f, 0.f), 0, 0, Vector(0, 0), 10.f, 0.5f, sf::Color::Yellow, false);
-    world.createCircle(world, 20.f, Vector(0.f, 100.f), Vector(0.f, 0.f), 0, 0, Vector(0, 0), 10.f, 0.5f, sf::Color::Yellow, false);
+
     world.createRectangle(world, 100.f, 60.f, Vector(700.f, 100.f), Vector(0.f, 0.f), 0, 0, Vector(0, 0), 10.f, 0.5f, sf::Color::Blue, false);
     //world.createRectangle(world, 100.f, 60.f, Vector(900.f, 100.f), Vector(0.f, 0.f), 0, 0, Vector(0, 0), 10.f, 0.5f, sf::Color::Green, false);
 
@@ -52,9 +52,10 @@ int main(){
         window.clear(Color::Black);
 
         world.update(deltaTime);
-        for (auto& obj : world.getObjects()) {
-            if (obj->shape) {
-                window.draw(*obj->shape);
+
+        for (const auto& obj : world.getObjects()) {
+            if (obj && obj->shape.get()) {
+                window.draw(*obj->shape.get());
             }
         }
 
@@ -62,7 +63,10 @@ int main(){
 
         window.display();
         cout<<(world.getObjects()).size()<<endl;
+        
     }
 
     return 0;
+
+    
 }

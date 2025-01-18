@@ -3,9 +3,9 @@
 #include "utility.cpp"
 
 
-void handleTransformtions(float deltaTime, std::vector<Object*> objects){
+void handleTransformtions(float deltaTime, std::vector<std::shared_ptr<Object>>& objects){
 
-    for(Object*& obj : objects){
+    for(auto& obj : objects){
 
         if(obj->isStatic) continue;
         Vector acceleration = obj->force / obj->mass;
@@ -22,7 +22,7 @@ void handleTransformtions(float deltaTime, std::vector<Object*> objects){
 
 }
 
-void handleGravity(float deltaTime, Object* obj, Vector gravity){
+void handleGravity(float deltaTime, const std::shared_ptr<Object>& obj, Vector gravity){
 
     if(!obj->isStatic){
 
@@ -34,9 +34,9 @@ void handleGravity(float deltaTime, Object* obj, Vector gravity){
 }
 
 
-void handleCollisions(std::vector<Object*> objects, Object* obj1){
+void handleCollisions(const std::vector<std::shared_ptr<Object>>& objects, std::shared_ptr<Object> obj1){
 
-    for(Object* obj2 : objects){
+    for(const auto& obj2 : objects){
 
         if(obj1 == obj2 || (obj1->isStatic && obj2->isStatic)){
 
@@ -47,7 +47,7 @@ void handleCollisions(std::vector<Object*> objects, Object* obj1){
         Vector normal;
         float depth;
 
-       if(collide(obj1, obj2, normal, depth)){
+       if(collide(obj1.get(), obj2.get(), normal, depth)){
 
         if(obj1->isStatic){
 
@@ -65,7 +65,7 @@ void handleCollisions(std::vector<Object*> objects, Object* obj1){
 
         }
 
-        resolveCollision(obj1, obj2, normal, depth);
+        resolveCollision(obj1.get(), obj2.get(), normal, depth);
 
        }
 
@@ -76,21 +76,11 @@ void handleCollisions(std::vector<Object*> objects, Object* obj1){
 }
 
 
-void cleaner(std::vector<Object*>& objects, Object& obj) {
+void cleaner(std::vector<std::shared_ptr<Object>>& objects, const std::shared_ptr<Object>& obj){
 
-    if (obj.position.x < -50 || obj.position.y > 900 || obj.position.x > 1250){
+    if (obj->position.x < -50 || obj->position.y > 900 || obj->position.x > 1250){
 
-        auto index = std::find_if(objects.begin(), objects.end(), [&obj](Object* o){
-
-            return o == &obj;
-
-        });
-
-        if (index != objects.end()){
-            delete *index; 
-            objects.erase(index); 
-
-        }
+        objects.erase(std::remove(objects.begin(), objects.end(), obj), objects.end());
 
     }
 
