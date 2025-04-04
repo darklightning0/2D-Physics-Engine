@@ -42,66 +42,86 @@ public:
     bool transformUpdateRequired;
     bool aabbUpdateRequired;
 
-    Object(float radius, float width, float height, Vector position, float density, float mass, float restitution,
+    Object(float radius, float width, float height, Vector position, float rotation, float density, float mass, float restitution,
         sf::Shape* shape, sf::Color color, bool isStatic, int type)
         : radius(radius), width(width), height(height), position(position), linearVelocity(Vector::Zero()),
           rotation(0.f), rotationalVelocity(0.f), force(Vector::Zero()), mass(1.f), restitution(0.5),
           density(1.f), isStatic(isStatic), shape(shape), color(color), type(type),
           transformUpdateRequired(true), aabbUpdateRequired(true){
 
-        this->MoI = this->getMomentOfInertia();
+        MoI = getMomentOfInertia();
 
-        if(this->isStatic){
+        if(isStatic){
 
-            this->invMass = 0;
+            invMass = 0;
             this->invMoI = 0;
 
         }else{
 
-            this->invMass = 1.f / this->mass;
-            this->invMoI = 1.f / this->invMoI;
+            invMass = 1.f / mass;
+            invMoI = 1.f / MoI;
 
         }
 
-        if (type == 1){ // Box
+        if(type == 1){ 
 
             vertices = createBoxVertices(width, height);
             triangles = createBoxTriangles();
             transformedVertices.resize(vertices.size());
 
-        }else { // Circle or other
+        }else{
 
             vertices.clear();
             triangles.clear();
             transformedVertices.clear();
         }
 
+        Rotate(rotation);
+
         if(shape){
             
             shape->setPosition(sf::Vector2f(position.x, position.y));
             shape->setFillColor(color);
+
         }
+
+    }
+
+    Vector getPosition(){
+
+        return Vector(shape->getPosition().x, shape->getPosition().y);
 
     }
 
     float getMomentOfInertia(){
 
-        if(this->type == 0){
+        if(type == 0){
 
-            return 0.5 * this->mass * this->radius;
+            return 0.5 * mass * radius * radius;
 
         }else{
 
-            return 1/12 * this->mass * (this->height * this->height + this->width * this->width);
+            return (1.f/12.f) * mass * (height * height + width * width);
 
         }
 
     }
 
-    void Move(const Vector& v) {
+    void Move(const Vector& v){
+
         position = position + v;
         transformUpdateRequired = true;
         aabbUpdateRequired = true;
+
+    }
+
+    void Rotate(float amount){
+
+        rotation += amount;
+        shape->rotate(-amount);
+        transformUpdateRequired = true;
+        aabbUpdateRequired = true;
+
     }
 
     std::vector<Vector> createBoxVertices(float width, float height) const {
@@ -118,56 +138,73 @@ public:
         };
     }
 
-    std::vector<int> createBoxTriangles() const {
+    std::vector<int> createBoxTriangles() const{
+
         return {0, 1, 2, 0, 2, 3};
+    
     }
 
-    std::vector<Vector> getTransformedVertices() {
-        if (transformUpdateRequired) {
+    std::vector<Vector> getTransformedVertices(){
+
+        if(transformUpdateRequired){
+
             Modify modify(position, rotation);
 
-            for (size_t i = 0; i < vertices.size(); ++i) {
-                transformedVertices[i] = ApplyTransform(vertices[i], modify);
+            for (size_t i = 0; i < vertices.size(); ++i){
+
+                transformedVertices[i] = TransformUtils::ApplyTransform(vertices[i], modify);
+
             }
+
+            transformUpdateRequired = false; 
 
         }
 
-        transformUpdateRequired = false;
         return transformedVertices;
-
     }
 
-    AABB getAABB() {
-        if (aabbUpdateRequired) {
+    AABB getAABB(){
+
+        if (aabbUpdateRequired){
+
             float minX = std::numeric_limits<float>::max();
             float minY = std::numeric_limits<float>::max();
             float maxX = std::numeric_limits<float>::lowest();
             float maxY = std::numeric_limits<float>::lowest();
+    
+            if (type == 1){
 
-            if (type == 1) { // Box
-                auto transformed = getTransformedVertices();
+                std::vector<Vector> vertices = getTransformedVertices();
+    
+                for (size_t i = 0; i < vertices.size(); i++){
 
-                for (const auto& v : transformed) {
-                    minX = std::min(minX, v.x);
-                    maxX = std::max(maxX, v.x);
-                    minY = std::min(minY, v.y);
-                    maxY = std::max(maxY, v.y);
+                    Vector v = vertices[i];
+    
+                    if(v.x < minX) {minX = v.x;}
+                    if(v.x > maxX) {maxX = v.x;}
+                    if(v.y < minY) {minY = v.y;}
+                    if(v.y > maxY) {maxY = v.y;}
+
                 }
-            } else if (type == 0) { // Circle
-                minX = position.x - radius;
-                minY = position.y - radius;
-                maxX = position.x + radius;
-                maxY = position.y + radius;
-            } else {
-                throw std::runtime_error("Unknown shape type.");
-            }
 
+            }else if(this->type == 0){
+                
+                minX = this->position.x - this->radius;
+                minY = this->position.y - this->radius;
+                maxX = this->position.x + this->radius;
+                maxY = this->position.y + this->radius;
+
+            }
+    
             aabb = AABB(minX, minY, maxX, maxY);
             aabbUpdateRequired = false;
-        }
 
+        }
+    
         return aabb;
     }
+    
+
 };
 
 #endif

@@ -67,12 +67,11 @@ int findClosestPointOnPolygon(Vector circleCenter, std::vector<Vector> vertices)
 std::vector<Vector> getVertices(sf::RectangleShape* rectangle){
 
     std::vector<Vector> vertices;
-    sf::FloatRect bounds = rectangle->getGlobalBounds();
 
-    vertices.push_back(Vector(bounds.left, bounds.top));
-    vertices.push_back(Vector(bounds.left + bounds.width, bounds.top));
-    vertices.push_back(Vector(bounds.left + bounds.width, bounds.top + bounds.height));
-    vertices.push_back(Vector(bounds.left, bounds.top + bounds.height));
+    vertices.push_back(change(rectangle->getTransform().transformPoint(0, 0)));
+    vertices.push_back(change(rectangle->getTransform().transformPoint(rectangle->getSize().x, 0)));
+    vertices.push_back(change(rectangle->getTransform().transformPoint(rectangle->getSize().x, rectangle->getSize().y)));
+    vertices.push_back(change(rectangle->getTransform().transformPoint(0, rectangle->getSize().y)));
 
     return vertices;
 
@@ -322,14 +321,14 @@ bool intersectAABBs(AABB a, AABB b){
 }
 
 
-bool intersectCircles(sf::CircleShape* circleA, sf::CircleShape* circleB, Vector& normal, float& depth){
+bool intersectCircles(Object* circleA, Object* circleB, Vector& normal, float& depth){
 
-    Vector centerA = change(circleA->getPosition());
-    Vector centerB = change(circleB->getPosition());
-
+    Vector centerA = circleA->getPosition();
+    Vector centerB = circleB->getPosition();
+    
     float dist = distance(centerA, centerB);
-    float radii = circleA->getRadius() + circleB->getRadius();
-
+    float radii = circleA->radius + circleB->radius;
+    
     if(dist >= radii){
 
         return false;
@@ -338,7 +337,7 @@ bool intersectCircles(sf::CircleShape* circleA, sf::CircleShape* circleB, Vector
 
     normal = (centerB - centerA).normalize();
     depth = radii - dist;
-
+    
     return true;
 
 }
@@ -413,7 +412,7 @@ bool intersectPolygons(Vector centerA, std::vector<Vector> verticesA, Vector cen
 
     Vector direction = centerB - centerA;
 
-    if(Vector::dot(direction, normal) < 0.f){
+    if(Vector::dot(centerB - centerA, normal) < 0.f){
 
         normal = -normal;
 
@@ -510,15 +509,12 @@ bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth){
 
         if(obj2->type == 1){
 
-            return intersectPolygons(change(obj1->shape->getPosition()), getVertices(static_cast<sf::RectangleShape*>(obj1->shape)), change(obj2->shape->getPosition()),getVertices(static_cast<sf::RectangleShape*>(obj2->shape)), normal, depth);
+            return intersectPolygons(obj1->getPosition(), obj1->getTransformedVertices(),obj2->getPosition(), obj2->getTransformedVertices(), normal, depth);
 
         }
         else if(obj2->type == 0){
 
-            CircleShape* circle = static_cast<sf::CircleShape*>(obj2->shape);
-            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj1->shape);
-
-            bool result = intersectCirclePolygons(change(circle->getPosition()), circle->getRadius(), change(rect->getPosition()), getVertices(rect), normal, depth);
+            bool result = intersectCirclePolygons(obj2->getPosition(), obj2->radius, obj1->getPosition(), obj1->getTransformedVertices(), normal, depth);
 
             normal = -normal;
             return result;
@@ -530,15 +526,12 @@ bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth){
 
         if(obj2->type == 1){
 
-            CircleShape* circle = static_cast<sf::CircleShape*>(obj1->shape);
-            RectangleShape* rect = static_cast<sf::RectangleShape*>(obj2->shape);
-
-            return intersectCirclePolygons(change(circle->getPosition()), circle->getRadius(), change(rect->getPosition()), getVertices(rect), normal, depth);
+            return intersectCirclePolygons(obj1->getPosition(), obj1->radius, obj2->getPosition(), obj2->getTransformedVertices(), normal, depth);
 
         }
         else if(obj2->type == 0){
 
-            return intersectCircles(static_cast<sf::CircleShape*>(obj1->shape), static_cast<sf::CircleShape*>(obj2->shape), normal, depth);
+            return intersectCircles(obj1, obj2, normal, depth);
 
         }
 

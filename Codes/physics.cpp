@@ -12,10 +12,12 @@ void handleTransformtions(float deltaTime, std::vector<Object*> objects){
         obj->linearVelocity = obj->linearVelocity + acceleration * deltaTime;
         obj->position = obj->position + obj->linearVelocity * deltaTime;
         obj->rotation = obj->rotation + obj->rotationalVelocity * deltaTime;
-        //std::cout<<obj->linearVelocity<<" pos: "<<obj->position<<" time: "<< deltaTime<< " step: "<<obj->linearVelocity * deltaTime<<std::endl;
 
         obj->shape->setPosition(sf::Vector2f(obj->position.x, obj->position.y));
         obj->shape->setRotation(obj->rotation);
+
+        obj->transformUpdateRequired = true;
+        obj->aabbUpdateRequired = true;
 
     }
 
@@ -41,7 +43,7 @@ void handleCollisions(std::vector<Object*>& objects, Object* obj1, std::vector<M
 
     for(Object* obj2 : objects){
 
-        AABB aabb2 = obj1->getAABB();
+        AABB aabb2 = obj2->getAABB();
 
         if(obj1 == obj2 || (obj1->isStatic && obj2->isStatic)){
 

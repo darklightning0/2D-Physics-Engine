@@ -88,13 +88,24 @@ class Vector{
             
         }
 
+        static float radToAngle(float rad){
+
+            return rad * 180 / M_PI;
+
+        }
+
+        static float angleToRad(float angle){
+
+            return angle * M_PI / 180;
+
+        }
+
         static bool nearlyEqual(float a, float b, float threshold = 0.0005f){
 
             return std::fabs(a - b) <= threshold;
 
         }
     
-        // Vector version of nearlyEqual (uses float version)
         static bool nearlyEqual(const Vector& v1, const Vector& v2, float threshold = 0.0005f){
 
             return nearlyEqual(v1.x, v2.x, threshold) && nearlyEqual(v1.y, v2.y, threshold);

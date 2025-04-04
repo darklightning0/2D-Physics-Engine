@@ -34,7 +34,7 @@ inline void findContactPoints(std::vector<Vector> verticesA, std::vector<Vector>
 
 inline bool intersectAABBs(AABB a, AABB b);
 
-inline bool intersectCircles(sf::CircleShape* circleA, sf::CircleShape* circleB, Vector& normal, float& depth);
+inline bool intersectCircles(Object* circleA, Object* circleB, Vector& normal, float& depth);
 
 inline bool intersectPolygons(Vector centerA, std::vector<Vector> verticesA, Vector centerB, std::vector<Vector> verticesB, Vector& normal, float& depth);
 
