@@ -1,0 +1,3 @@
+/Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/CMakeFiles/PhysicsEngine.dir
+/Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/CMakeFiles/edit_cache.dir
+/Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/CMakeFiles/rebuild_cache.dir

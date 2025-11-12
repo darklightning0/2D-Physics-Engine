@@ -1,5 +1,8 @@
 
 #include "World.cpp"
+#include "config.hpp"
+#include <random>
+#include <cmath>
 
 using namespace sf;
 
@@ -10,30 +13,56 @@ void spawner(Event event, RenderWindow &window, World &world){
         Vector2i mousePosition = Mouse::getPosition(window);
         Vector spawnPosition(mousePosition.x, mousePosition.y);
 
-        std::srand(static_cast<unsigned int>(std::time(nullptr))); 
-
-        float rotation = std::rand() % 360;
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        static std::uniform_int_distribution<> colorDist(0, 255);   
 
         sf::Color randomColor(
-            std::rand() % 256, // Random red [0-255]
-            std::rand() % 256, // Random green [0-255]
-            std::rand() % 256  // Random blue [0-255]
+            colorDist(gen),
+            colorDist(gen),
+            colorDist(gen)
         );
 
         if(event.key.code == Keyboard::Key::Num1){
 
-            world.createCircle(world, 20.f, spawnPosition, 0.f, 1.f, 1.f, 0.5f, randomColor, false);
+            float spawnRadiusPixels = metersToPixels(0.3f);
+            world.createCircle(world, spawnRadiusPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 2.f, 0.4f, randomColor, false);
 
         } 
         else if (event.key.code == Keyboard::Key::Num2){
 
-            world.createRectangle(world, 100.f, 60.f, spawnPosition, 0.f, 1.f, 1.f, 0.5f, randomColor, false);
+            float spawnWidthPixels = metersToPixels(1.0f);
+            float spawnHeightPixels = metersToPixels(0.4f);
+            world.createRectangle(world, spawnWidthPixels, spawnHeightPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 4.f, 0.4f, randomColor, false);
 
         }
 
     }
 
 }
+
+float normalizeDegrees(float degrees){
+
+    if(degrees > 360.f || degrees < -360.f){
+
+        degrees = std::fmod(degrees, 360.f);
+
+    }
+
+    if(degrees > 360.f){
+
+        degrees -= 360.f;
+
+    }else if(degrees < -360.f){
+
+        degrees += 360.f;
+
+    }
+
+    return degrees;
+
+}
+
 
 std::vector<Text> texts;
 Font font;
@@ -73,24 +102,28 @@ void pinpoint(Object* obj){
 
     }else{
 
-        write("m: ", Vector(5, 15));
-        write("pos: ", Vector(5, 50));
+        write("m (kg): ", Vector(5, 15));
+        write("pos (m): ", Vector(5, 50));
         write("teta: ", Vector(5, 85));
-        write("v: ", Vector(5, 120));
-        write("a: ", Vector(5, 155));
+        write("v (m/s): ", Vector(5, 120));
+        write("a (m/s^2): ", Vector(5, 155));
         write("*F: ", Vector(5, 190));
         write("*P: ", Vector(5, 225));
     
         Vector accelaration = obj->force / obj->mass;
         Vector momentum = obj->linearVelocity * obj->mass;
+        Vector positionMeters = pixelsToMeters(obj->position);
+        Vector velocityMeters = pixelsToMeters(obj->linearVelocity);
+        Vector accelerationMeters = pixelsToMeters(accelaration);
     
-        write(std::to_string(obj->mass), Vector(60, 15));
-        write(std::to_string(obj->position.x) + ", " + std::to_string(obj->position.y), Vector(60, 50));
-        write(std::to_string(obj->rotation), Vector(60, 85));
-        write(std::to_string(obj->linearVelocity.x) + ", " + std::to_string(obj->linearVelocity.y), Vector(60, 120));
-        write(std::to_string(accelaration.x) + ", " + std::to_string(accelaration.y), Vector(60, 155));
-        write(std::to_string(obj->force.x) + ", " + std::to_string(obj->force.y), Vector(60, 190));
-        write(std::to_string(momentum.x) + ", " + std::to_string(momentum.y), Vector(60, 225));
+        write(std::to_string(obj->mass), Vector(80, 15));
+        write(std::to_string(positionMeters.x) + ", " + std::to_string(positionMeters.y), Vector(80, 50));
+        float degrees = normalizeDegrees(Vector::radToAngle(obj->angle));
+        write(std::to_string(degrees), Vector(80, 85));
+        write(std::to_string(velocityMeters.x) + ", " + std::to_string(velocityMeters.y), Vector(80, 120));
+        write(std::to_string(accelerationMeters.x) + ", " + std::to_string(accelerationMeters.y), Vector(80, 155));
+        write(std::to_string(obj->force.x) + ", " + std::to_string(obj->force.y), Vector(80, 190));
+        write(std::to_string(momentum.x) + ", " + std::to_string(momentum.y), Vector(80, 225));
 
     }
 
@@ -140,14 +173,13 @@ void showHitboxes(RenderWindow &window, World &world, bool on){
         for(auto& obj : world.getObjects()){
 
             if(obj->shape){
-    
-                window.draw(*obj->shape);
         
                 std::vector<Vector> verts = obj->getTransformedVertices();
     
                 for(size_t i = 0; i < verts.size(); i++){
     
-                    sf::CircleShape point(2);
+                    sf::CircleShape point(2.f);
+                    point.setOrigin(2.f, 2.f);
                     point.setFillColor(sf::Color::Red);
                     point.setPosition(verts[i].x, verts[i].y);
                     window.draw(point);

@@ -11,14 +11,15 @@
 
 class Object {
 public:
+
     float radius;
     float width;
     float height;
 
     Vector position;
     Vector linearVelocity;
-    float rotation;
-    float rotationalVelocity;
+    float angle;
+    float angularVelocity;
 
     Vector force;
 
@@ -36,17 +37,15 @@ public:
     float density;
 
     std::vector<Vector> vertices;
-    std::vector<int> triangles;
     std::vector<Vector> transformedVertices;
     AABB aabb;
     bool transformUpdateRequired;
     bool aabbUpdateRequired;
 
-    Object(float radius, float width, float height, Vector position, float rotation, float density, float mass, float restitution,
+    Object(float radius, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution,
         sf::Shape* shape, sf::Color color, bool isStatic, int type)
-        : radius(radius), width(width), height(height), position(position), linearVelocity(Vector::Zero()),
-          rotation(0.f), rotationalVelocity(0.f), force(Vector::Zero()), mass(1.f), restitution(0.5),
-          density(1.f), isStatic(isStatic), shape(shape), color(color), type(type),
+        : radius(radius), width(width), height(height), position(position), linearVelocity(linearVelocity),
+          angle(angle), angularVelocity(angularVelocity), force(Vector::Zero()), mass(mass), restitution(restitution), isStatic(isStatic), shape(shape), color(color), type(type),
           transformUpdateRequired(true), aabbUpdateRequired(true){
 
         MoI = getMomentOfInertia();
@@ -54,7 +53,7 @@ public:
         if(isStatic){
 
             invMass = 0;
-            this->invMoI = 0;
+            invMoI = 0;
 
         }else{
 
@@ -66,22 +65,23 @@ public:
         if(type == 1){ 
 
             vertices = createBoxVertices(width, height);
-            triangles = createBoxTriangles();
             transformedVertices.resize(vertices.size());
+            density = mass / (width * height);
 
         }else{
 
             vertices.clear();
-            triangles.clear();
             transformedVertices.clear();
-        }
 
-        Rotate(rotation);
+            density = mass / (M_PI * radius * radius);
+
+        }
 
         if(shape){
             
             shape->setPosition(sf::Vector2f(position.x, position.y));
             shape->setFillColor(color);
+            shape->setRotation(-Vector::radToAngle(angle));
 
         }
 
@@ -110,6 +110,28 @@ public:
     void Move(const Vector& v){
 
         position = position + v;
+
+        if(shape){
+
+            shape->setPosition(position.x, position.y);
+
+        }
+
+        transformUpdateRequired = true;
+        aabbUpdateRequired = true;
+
+    }
+
+    void MoveTo(const Vector& v){
+
+        position = v;
+
+        if(shape){
+
+            shape->setPosition(position.x, position.y);
+
+        }
+
         transformUpdateRequired = true;
         aabbUpdateRequired = true;
 
@@ -117,8 +139,14 @@ public:
 
     void Rotate(float amount){
 
-        rotation += amount;
-        shape->rotate(-amount);
+        angle += amount;
+
+        if(shape){
+
+            shape->rotate(-Vector::radToAngle(amount));
+
+        }
+
         transformUpdateRequired = true;
         aabbUpdateRequired = true;
 
@@ -138,17 +166,11 @@ public:
         };
     }
 
-    std::vector<int> createBoxTriangles() const{
-
-        return {0, 1, 2, 0, 2, 3};
-    
-    }
-
     std::vector<Vector> getTransformedVertices(){
 
         if(transformUpdateRequired){
 
-            Modify modify(position, rotation);
+            Modify modify(position, angle);
 
             for (size_t i = 0; i < vertices.size(); ++i){
 

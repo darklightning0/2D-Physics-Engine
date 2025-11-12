@@ -16,8 +16,8 @@ public:
     Modify(const Vector& position, float angle)
         : positionX(position.x),
           positionY(position.y),
-          sinAngle(std::sin(-angle * M_PI / 180)),
-          cosAngle(std::cos(-angle * M_PI / 180)) {}
+          sinAngle(std::sin(-angle)),
+          cosAngle(std::cos(-angle)) {}
 
     Modify(float x, float y, float angle)
         : positionX(x),

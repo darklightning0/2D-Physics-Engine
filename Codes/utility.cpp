@@ -543,7 +543,7 @@ bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth){
 }
 
 
-void resolveCollision( Manifold contact){
+void resolveCollision(Manifold contact){
 
     Object* obj1 = contact.obj1;
     Object* obj2 = contact.obj2;
@@ -574,3 +574,130 @@ void resolveCollision( Manifold contact){
 }
 
 
+void resolveCollisionWithRotation(Manifold contact){
+
+    Object* obj1 = contact.obj1;
+    Object* obj2 = contact.obj2;
+    Vector normal = contact.normal;
+    Vector contact1 = contact.contact1;
+    Vector contact2 = contact.contact2;
+    int contactCount = contact.contactCount;
+
+    float e = std::min(obj1->restitution, obj2->restitution);
+
+    std::vector<Vector> contactList = {contact1, contact2};
+    std::vector<Vector> impulseList;
+    std::vector<Vector> r1List;
+    std::vector<Vector> r2List;
+    r1List.resize(contactCount);
+    r2List.resize(contactCount);
+    impulseList.resize(contactCount);
+
+    for(int i = 0; i < contactCount; i++){
+
+                impulseList[i] = Vector::Zero();
+                r1List[i] = Vector::Zero();
+                r2List[i] = Vector::Zero();
+
+    }
+
+    for(int i = 0; i < contactCount; i++){
+
+        Vector r1 = contactList[i] - obj1->position;
+        Vector r2 = contactList[i] - obj2->position;
+
+        r1List[i] = r1;
+        r2List[i] = r2;
+
+        Vector r1Perp = Vector(-r1.y, r1.x);
+        Vector r2Perp = Vector(-r2.y, r2.x);
+
+        Vector angularLinearVelocity1 = r1Perp * obj1->angularVelocity;
+        Vector angularLinearVelocity2 = r2Perp * obj2->angularVelocity;
+
+        Vector relativeVelocity = (obj2->linearVelocity + angularLinearVelocity2) - (obj1->linearVelocity + angularLinearVelocity1);
+
+        float contactVelocityMag = Vector::dot(relativeVelocity, normal);
+
+        if(contactVelocityMag > 0){
+    
+            continue;
+    
+        }
+
+        float r1PerpDotN = Vector::dot(r1Perp, normal);
+        float r2PerpDotN = Vector::dot(r2Perp, normal);
+
+        float denom = obj1->invMass + obj2->invMass + (r1PerpDotN * r1PerpDotN) * obj1->invMoI + (r2PerpDotN * r2PerpDotN) * obj2->invMoI;
+
+        float j = -(1.f + e) * contactVelocityMag;
+        j = j / denom;
+        j = j / contactCount;
+    
+        Vector impulse = j * normal;
+        impulseList[i] = impulse;
+
+    }
+
+    for(int i = 0; i < contactCount; i++){
+
+        Vector impulse = impulseList[i];
+        Vector r1 = r1List[i];
+        Vector r2 = r2List[i];
+
+        obj1->linearVelocity = obj1->linearVelocity + -impulse * obj1->invMass;
+        obj1->angularVelocity = obj1->angularVelocity + -(Vector::cross(r1, impulse) * obj1->invMoI);
+
+        obj2->linearVelocity = obj2->linearVelocity + impulse * obj2->invMass;
+        obj2->angularVelocity = obj2->angularVelocity + Vector::cross(r2, impulse) * obj2->invMoI;
+
+    }
+
+}
+
+
+void positionalCorrection(const Manifold& contact){
+
+    const float percent = 0.4f;
+    const float slop = 0.01f;
+
+    Object* obj1 = contact.obj1;
+    Object* obj2 = contact.obj2;
+
+    if(obj1->isStatic && obj2->isStatic){
+
+        return;
+
+    }
+
+    float correctionMag = std::max(contact.depth - slop, 0.f);
+
+    if(correctionMag <= 0.f){
+
+        return;
+
+    }
+
+    float invMassSum = obj1->invMass + obj2->invMass;
+
+    if(invMassSum <= 0.f){
+
+        return;
+
+    }
+
+    Vector correction = (correctionMag / invMassSum) * percent * contact.normal;
+
+    if(!obj1->isStatic){
+
+        obj1->Move(-correction * obj1->invMass);
+
+    }
+
+    if(!obj2->isStatic){
+
+        obj2->Move(correction * obj2->invMass);
+
+    }
+
+}

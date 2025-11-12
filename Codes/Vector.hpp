@@ -137,6 +137,12 @@ class Vector{
 
         }
 
+        float static cross(Vector a, Vector b){
+
+            return a.x * b.y - a.y * b.x;
+
+        }
+
         Vector min(const Vector& other) const{
 
             if(this->magnitude() > other.magnitude()){

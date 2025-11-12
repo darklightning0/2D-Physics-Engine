@@ -4,7 +4,7 @@
 
 #include "utility.hpp"
 
-inline void handleTransformtions(float deltaTime, std::vector<Object*> objects);
+inline void handleTransformations(float deltaTime, std::vector<Object*> objects);
 
 inline void handleGravity(float deltaTime, Object* obj, Vector gravity);
 

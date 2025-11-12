@@ -1,27 +1,31 @@
 
-
 #include "utility.cpp"
+#include <cmath>
 
+void handleTransformations(float deltaTime, std::vector<Object*> objects){
 
-void handleTransformtions(float deltaTime, std::vector<Object*> objects){
+    const float twoPi = 2.f * M_PI;
 
     for(Object*& obj : objects){
 
         if(obj->isStatic) continue;
+
+        if(obj->angle < -twoPi) obj->angle += twoPi;
+        if(obj->angle > twoPi) obj->angle -= twoPi;
+
         Vector acceleration = obj->force / obj->mass;
         obj->linearVelocity = obj->linearVelocity + acceleration * deltaTime;
         obj->position = obj->position + obj->linearVelocity * deltaTime;
-        obj->rotation = obj->rotation + obj->rotationalVelocity * deltaTime;
+
+        obj->Rotate(-obj->angularVelocity * deltaTime);
 
         obj->shape->setPosition(sf::Vector2f(obj->position.x, obj->position.y));
-        obj->shape->setRotation(obj->rotation);
 
-        obj->transformUpdateRequired = true;
-        obj->aabbUpdateRequired = true;
-
+        //obj->transformUpdateRequired = true;
+        //obj->aabbUpdateRequired = true;
     }
-
 }
+
 
 void handleGravity(float deltaTime, Object* obj, Vector gravity){
 
@@ -39,17 +43,16 @@ void handleGravity(float deltaTime, Object* obj, Vector gravity){
 
 void handleCollisions(std::vector<Object*>& objects, Object* obj1, std::vector<Manifold*>& contactList, std::vector<Manifold*>& indicatorList){
 
-    AABB aabb1 = obj1->getAABB();
-
     for(Object* obj2 : objects){
-
-        AABB aabb2 = obj2->getAABB();
 
         if(obj1 == obj2 || (obj1->isStatic && obj2->isStatic)){
 
             continue; 
 
         }
+
+        AABB aabb1 = obj1->getAABB();
+        AABB aabb2 = obj2->getAABB();
 
         if(!intersectAABBs(aabb1, aabb2)){
 
@@ -60,48 +63,35 @@ void handleCollisions(std::vector<Object*>& objects, Object* obj1, std::vector<M
         Vector normal;
         float depth;
 
-       if(collide(obj1, obj2, normal, depth)){
+        if(collide(obj1, obj2, normal, depth)){
 
-        if(obj1->isStatic){
+            Vector contact1;
+            Vector contact2;
+            int contactCount;
 
-            obj2->Move(normal * depth);
+            findContactPoints(*obj1, *obj2, contact1, contact2, contactCount);
+            contactList.push_back(new Manifold(obj1, obj2, normal, depth, contact1, contact2, contactCount));
 
         }
-        else if(obj2->isStatic){
 
-            obj1->Move(-normal * depth);
+    }
+
+}
+
+
+void cleaner(std::vector<Object*>& objects, Object& obj){
+
+    for (size_t i = 0; i < objects.size();){
+
+        if(objects[i]->position.x < -50 || objects[i]->position.y > 900 || objects[i]->position.x > 1250){
+
+            delete objects[i];             
+            objects.erase(objects.begin() + i);  
 
         }else{
 
-            obj1->Move(-normal * depth / 2);
-            obj2->Move(normal * depth / 2);
+            ++i; 
 
-        }
-
-        Vector contact1;
-        Vector contact2;
-        int contactCount;
-
-        findContactPoints(*obj1, *obj2, contact1, contact2, contactCount);
-        contactList.push_back(new Manifold(obj1, obj2, normal, depth, contact1, contact2, contactCount));
-
-       }
-
-    }
-
-}
-
-
-void cleaner(std::vector<Object*>& objects, Object& obj) {
-    for (size_t i = 0; i < objects.size();) {
-        if (objects[i]->position.x < -50 || objects[i]->position.y > 900 || objects[i]->position.x > 1250) {
-            delete objects[i];              // Free memory
-            objects.erase(objects.begin() + i);  // Remove from vector
-        } else {
-            ++i;  // Only increment if no deletion occurred
         }
     }
 }
-
-
-

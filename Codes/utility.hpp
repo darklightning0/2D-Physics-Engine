@@ -44,4 +44,8 @@ inline bool collide(Object* obj1, Object* obj2, Vector& normal, float& depth);
 
 inline void resolveCollision(Manifold contact);
 
+inline void resolveCollisionWithRotation(Manifold contact);
+
+inline void positionalCorrection(const Manifold& contact);
+
 #endif
