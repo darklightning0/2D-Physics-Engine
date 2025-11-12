@@ -26,14 +26,14 @@ void spawner(Event event, RenderWindow &window, World &world){
         if(event.key.code == Keyboard::Key::Num1){
 
             float spawnRadiusPixels = metersToPixels(0.3f);
-            world.createCircle(world, spawnRadiusPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 2.f, 0.4f, randomColor, false);
+            world.createCircle(world, spawnRadiusPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 2.f, 0.4f, randomColor, false, 0.6f, 0.45f);
 
         } 
         else if (event.key.code == Keyboard::Key::Num2){
 
             float spawnWidthPixels = metersToPixels(1.0f);
             float spawnHeightPixels = metersToPixels(0.4f);
-            world.createRectangle(world, spawnWidthPixels, spawnHeightPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 4.f, 0.4f, randomColor, false);
+            world.createRectangle(world, spawnWidthPixels, spawnHeightPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 4.f, 0.4f, randomColor, false, 0.7f, 0.5f);
 
         }
 

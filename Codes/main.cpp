@@ -30,7 +30,9 @@ int main(){
         8.f,
         0.5f,
         sf::Color::Yellow,
-        false
+        false,
+        0.6f,
+        0.4f
     );
 
     float staticPlateWidthMeters = 2.5f;
@@ -47,7 +49,9 @@ int main(){
         1.f,
         0.5f,
         sf::Color::Blue,
-        true
+        true,
+        0.9f,
+        0.7f
     );
 
     float downLedgeAngle = Vector::angleToRad(155.f);
@@ -64,7 +68,9 @@ int main(){
         1.f,
         0.5f,
         sf::Color::White,
-        true
+        true,
+        0.9f,
+        0.7f
     );
     world.createRectangle(
         world,
@@ -77,7 +83,9 @@ int main(){
         1.f,
         0.5f,
         sf::Color::White,
-        true
+        true,
+        0.9f,
+        0.7f
     );
 
     world.createRectangle(
@@ -91,7 +99,9 @@ int main(){
         1.f,
         0.5f,
         sf::Color::White,
-        true
+        true,
+        0.95f,
+        0.75f
     );
 
 

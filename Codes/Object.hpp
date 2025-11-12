@@ -24,6 +24,8 @@ public:
     Vector force;
 
     float restitution;
+    float staticFriction;
+    float dynamicFriction;
     sf::Shape* shape;
     sf::Color color;
     bool isStatic;
@@ -42,10 +44,12 @@ public:
     bool transformUpdateRequired;
     bool aabbUpdateRequired;
 
-    Object(float radius, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution,
-        sf::Shape* shape, sf::Color color, bool isStatic, int type)
+    Object(float radius, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity,
+        float mass, float restitution, sf::Shape* shape, sf::Color color, bool isStatic, int type,
+        float staticFriction = 0.5f, float dynamicFriction = 0.3f)
         : radius(radius), width(width), height(height), position(position), linearVelocity(linearVelocity),
-          angle(angle), angularVelocity(angularVelocity), force(Vector::Zero()), mass(mass), restitution(restitution), isStatic(isStatic), shape(shape), color(color), type(type),
+          angle(angle), angularVelocity(angularVelocity), force(Vector::Zero()), mass(mass), restitution(restitution),
+          staticFriction(staticFriction), dynamicFriction(dynamicFriction), shape(shape), color(color), isStatic(isStatic), type(type),
           transformUpdateRequired(true), aabbUpdateRequired(true){
 
         MoI = getMomentOfInertia();

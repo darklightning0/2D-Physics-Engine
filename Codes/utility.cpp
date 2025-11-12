@@ -1,5 +1,6 @@
 
 #include "World.hpp"
+#include <cmath>
 
 Vector change(Vector2f vector){
 
@@ -586,20 +587,14 @@ void resolveCollisionWithRotation(Manifold contact){
     float e = std::min(obj1->restitution, obj2->restitution);
 
     std::vector<Vector> contactList = {contact1, contact2};
-    std::vector<Vector> impulseList;
-    std::vector<Vector> r1List;
-    std::vector<Vector> r2List;
-    r1List.resize(contactCount);
-    r2List.resize(contactCount);
-    impulseList.resize(contactCount);
+    std::vector<Vector> impulseList(contactCount, Vector::Zero());
+    std::vector<Vector> frictionImpulseList(contactCount, Vector::Zero());
+    std::vector<Vector> r1List(contactCount, Vector::Zero());
+    std::vector<Vector> r2List(contactCount, Vector::Zero());
+    std::vector<float> normalImpulseList(contactCount, 0.f);
 
-    for(int i = 0; i < contactCount; i++){
-
-                impulseList[i] = Vector::Zero();
-                r1List[i] = Vector::Zero();
-                r2List[i] = Vector::Zero();
-
-    }
+    float staticFriction = std::sqrt(obj1->staticFriction * obj2->staticFriction);
+    float dynamicFriction = std::sqrt(obj1->dynamicFriction * obj2->dynamicFriction);
 
     for(int i = 0; i < contactCount; i++){
 
@@ -636,20 +631,51 @@ void resolveCollisionWithRotation(Manifold contact){
     
         Vector impulse = j * normal;
         impulseList[i] = impulse;
+        normalImpulseList[i] = j;
+
+        Vector tangent = relativeVelocity - normal * contactVelocityMag;
+        tangent = tangent.normalize();
+
+        Vector frictionImpulse = Vector::Zero();
+
+        if(!Vector::nearlyEqual(tangent, Vector::Zero())){
+
+            float jt = -Vector::dot(relativeVelocity, tangent);
+            jt = jt / denom;
+            jt = jt / contactCount;
+
+            float absJt = std::fabs(jt);
+            float maxStatic = normalImpulseList[i] * staticFriction;
+
+            if(absJt <= maxStatic){
+
+                frictionImpulse = jt * tangent;
+
+            }else{
+
+                frictionImpulse = -normalImpulseList[i] * dynamicFriction * tangent;
+
+            }
+
+        }
+
+        frictionImpulseList[i] = frictionImpulse;
 
     }
 
     for(int i = 0; i < contactCount; i++){
 
         Vector impulse = impulseList[i];
+        Vector frictionImpulse = frictionImpulseList[i];
         Vector r1 = r1List[i];
         Vector r2 = r2List[i];
+        Vector totalImpulse = impulse + frictionImpulse;
 
-        obj1->linearVelocity = obj1->linearVelocity + -impulse * obj1->invMass;
-        obj1->angularVelocity = obj1->angularVelocity + -(Vector::cross(r1, impulse) * obj1->invMoI);
+        obj1->linearVelocity = obj1->linearVelocity + -totalImpulse * obj1->invMass;
+        obj1->angularVelocity = obj1->angularVelocity + -(Vector::cross(r1, totalImpulse) * obj1->invMoI);
 
-        obj2->linearVelocity = obj2->linearVelocity + impulse * obj2->invMass;
-        obj2->angularVelocity = obj2->angularVelocity + Vector::cross(r2, impulse) * obj2->invMoI;
+        obj2->linearVelocity = obj2->linearVelocity + totalImpulse * obj2->invMass;
+        obj2->angularVelocity = obj2->angularVelocity + Vector::cross(r2, totalImpulse) * obj2->invMoI;
 
     }
 
