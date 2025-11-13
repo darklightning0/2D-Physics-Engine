@@ -2,6 +2,7 @@
 #define WORLD_HPP
 
 #include "physics.hpp"
+#include "Material.hpp"
 
 class World{
 
@@ -10,8 +11,8 @@ public:
     World(Vector gravity) : gravity(gravity) {}
 
     inline void addObject(Object* object);
-    inline Object& createRectangle(World& world, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution, sf::Color color, bool isStatic, float staticFriction = 0.5f, float dynamicFriction = 0.3f);
-    inline Object& createCircle(World& world, float radius, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution, sf::Color color, bool isStatic, float staticFriction = 0.5f, float dynamicFriction = 0.3f);   
+    inline Object& createRectangle(World& world, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution = -1.f, sf::Color color = sf::Color::White, bool isStatic = false, Material material = Material::Default);
+    inline Object& createCircle(World& world, float radius, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution = -1.f, sf::Color color = sf::Color::White, bool isStatic = false, Material material = Material::Default);   
     inline void update(float deltaTime, int iterations);
 
     inline float getGravity() const;

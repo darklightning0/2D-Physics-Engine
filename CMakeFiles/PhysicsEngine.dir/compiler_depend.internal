@@ -967,6 +967,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/World.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/AABB.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Manifold.hpp
+ /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Object.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Transform.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Vector.hpp
@@ -2066,6 +2067,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/main.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/AABB.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Manifold.hpp
+ /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Object.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Transform.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Vector.hpp
@@ -3120,6 +3122,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/physics.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/AABB.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Manifold.hpp
+ /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Object.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Transform.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Vector.hpp
@@ -4170,6 +4173,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/utility.cpp.o
  /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/AABB.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Manifold.hpp
+ /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Object.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Transform.hpp
  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Vector.hpp

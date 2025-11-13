@@ -966,6 +966,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/World.cpp.o: Codes/World.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
   Codes/Manifold.hpp \
+  Codes/Material.hpp \
   Codes/Object.hpp \
   Codes/Transform.hpp \
   Codes/Vector.hpp \
@@ -2064,6 +2065,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/main.cpp.o: Codes/main.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
   Codes/Manifold.hpp \
+  Codes/Material.hpp \
   Codes/Object.hpp \
   Codes/Transform.hpp \
   Codes/Vector.hpp \
@@ -3117,6 +3119,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/physics.cpp.o: Codes/physics.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
   Codes/Manifold.hpp \
+  Codes/Material.hpp \
   Codes/Object.hpp \
   Codes/Transform.hpp \
   Codes/Vector.hpp \
@@ -4166,6 +4169,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/utility.cpp.o: Codes/utility.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
   Codes/Manifold.hpp \
+  Codes/Material.hpp \
   Codes/Object.hpp \
   Codes/Transform.hpp \
   Codes/Vector.hpp \
@@ -5637,6 +5641,8 @@ Codes/World.cpp:
 /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/sys/_types/_blksize_t.h:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/_wctype.h:
+
+Codes/Material.hpp:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/__algorithm/ranges_move.h:
 

@@ -1,6 +1,7 @@
 
 #include "observer_controls.cpp"
 #include "config.hpp"
+#include "Material.hpp"
 #include <algorithm>
 
 using namespace std;
@@ -28,11 +29,10 @@ int main(){
         0.f,
         0.f,
         8.f,
-        0.5f,
+        -1.f,
         sf::Color::Yellow,
         false,
-        0.6f,
-        0.4f
+        Material::Rubber
     );
 
     float staticPlateWidthMeters = 2.5f;
@@ -47,11 +47,10 @@ int main(){
         0.f,
         0.f,
         1.f,
-        0.5f,
+        -1.f,
         sf::Color::Blue,
         true,
-        0.9f,
-        0.7f
+        Material::Steel
     );
 
     float downLedgeAngle = Vector::angleToRad(155.f);
@@ -66,11 +65,10 @@ int main(){
         downLedgeAngle,
         0.f,
         1.f,
-        0.5f,
+        -1.f,
         sf::Color::White,
         true,
-        0.9f,
-        0.7f
+        Material::Wood
     );
     world.createRectangle(
         world,
@@ -81,11 +79,10 @@ int main(){
         upperLedgeAngle,
         0.f,
         1.f,
-        0.5f,
+        -1.f,
         sf::Color::White,
         true,
-        0.9f,
-        0.7f
+        Material::Wood
     );
 
     world.createRectangle(
@@ -97,11 +94,10 @@ int main(){
         0.f,
         0.f,
         1.f,
-        0.5f,
-        sf::Color::White,
+        -1.f,
+        sf::Color::Red,
         true,
-        0.95f,
-        0.75f
+        Material::Ice
     );
 
 
@@ -164,6 +160,19 @@ int main(){
             if(obj->shape){
 
                 window.draw(*obj->shape);
+
+                if(obj->type == 0){
+
+                    sf::CircleShape* circleShape = dynamic_cast<sf::CircleShape*>(obj->shape);
+                    if(circleShape){
+                        sf::Vertex line[] = {
+                            sf::Vertex(circleShape->getPosition(), sf::Color::Red),
+                            sf::Vertex(circleShape->getPosition() + sf::Vector2f(std::cos(obj->angle), -std::sin(obj->angle)) * circleShape->getRadius(), sf::Color::Red)
+                        };
+                        window.draw(line, 2, sf::Lines);
+                    }
+
+                }
 
             }
 

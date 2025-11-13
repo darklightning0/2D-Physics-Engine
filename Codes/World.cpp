@@ -7,28 +7,32 @@ void World::addObject(Object* object){
 
 }
 
-Object& World::createRectangle(World& world, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution, sf::Color color, bool isStatic, float staticFriction, float dynamicFriction){
+Object& World::createRectangle(World& world, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution, sf::Color color, bool isStatic, Material material){
     
     RectangleShape* RectShape = new RectangleShape(Vector2f(width, height)); 
     RectShape->setOrigin(width / 2.0f, height / 2.0f);
     RectShape->setOutlineThickness(2.f);     
     RectShape->setOutlineColor(sf::Color::White);
 
-    Object* RectObject = new Object(0, width, height, position, linearVelocity, angle, angularVelocity, mass, restitution, RectShape, color, isStatic, 1, staticFriction, dynamicFriction);
+    float resolvedRestitution = restitution < 0.f ? getMaterialRestitution(material) : restitution;
+
+    Object* RectObject = new Object(0, width, height, position, linearVelocity, angle, angularVelocity, mass, resolvedRestitution, material, RectShape, color, isStatic, 1);
     world.addObject(RectObject);
 
     return *RectObject;
 
 }
 
-Object& World::createCircle(World& world, float radius, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution, sf::Color color, bool isStatic, float staticFriction, float dynamicFriction){
+Object& World::createCircle(World& world, float radius, Vector position, Vector linearVelocity, float angle, float angularVelocity, float mass, float restitution, sf::Color color, bool isStatic, Material material){
 
     CircleShape* CircShape = new CircleShape(radius);
     CircShape->setOrigin(radius, radius);
     CircShape->setOutlineThickness(2.f);  
     CircShape->setOutlineColor(sf::Color::White);
 
-    Object* CircObject = new Object(radius, 0, 0, position, linearVelocity, angle, angularVelocity, mass, restitution, CircShape, color, isStatic, 0, staticFriction, dynamicFriction);
+    float resolvedRestitution = restitution < 0.f ? getMaterialRestitution(material) : restitution;
+
+    Object* CircObject = new Object(radius, 0, 0, position, linearVelocity, angle, angularVelocity, mass, resolvedRestitution, material, CircShape, color, isStatic, 0);
     world.addObject(CircObject);
 
     return *CircObject;

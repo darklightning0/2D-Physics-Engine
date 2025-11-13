@@ -1,6 +1,7 @@
 
 #include "World.cpp"
 #include "config.hpp"
+#include "Material.hpp"
 #include <random>
 #include <cmath>
 
@@ -26,14 +27,14 @@ void spawner(Event event, RenderWindow &window, World &world){
         if(event.key.code == Keyboard::Key::Num1){
 
             float spawnRadiusPixels = metersToPixels(0.3f);
-            world.createCircle(world, spawnRadiusPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 2.f, 0.4f, randomColor, false, 0.6f, 0.45f);
+            world.createCircle(world, spawnRadiusPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 2.f, -1.f, randomColor, false, Material::Steel);
 
         } 
         else if (event.key.code == Keyboard::Key::Num2){
 
             float spawnWidthPixels = metersToPixels(1.0f);
             float spawnHeightPixels = metersToPixels(0.4f);
-            world.createRectangle(world, spawnWidthPixels, spawnHeightPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 4.f, 0.4f, randomColor, false, 0.7f, 0.5f);
+            world.createRectangle(world, spawnWidthPixels, spawnHeightPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 4.f, -1.f, randomColor, false, Material::Steel);
 
         }
 
@@ -116,14 +117,14 @@ void pinpoint(Object* obj){
         Vector velocityMeters = pixelsToMeters(obj->linearVelocity);
         Vector accelerationMeters = pixelsToMeters(accelaration);
     
-        write(std::to_string(obj->mass), Vector(80, 15));
-        write(std::to_string(positionMeters.x) + ", " + std::to_string(positionMeters.y), Vector(80, 50));
+        write(std::to_string(obj->mass), Vector(100, 15));
+        write(std::to_string(positionMeters.x) + ", " + std::to_string(positionMeters.y), Vector(100, 50));
         float degrees = normalizeDegrees(Vector::radToAngle(obj->angle));
-        write(std::to_string(degrees), Vector(80, 85));
-        write(std::to_string(velocityMeters.x) + ", " + std::to_string(velocityMeters.y), Vector(80, 120));
-        write(std::to_string(accelerationMeters.x) + ", " + std::to_string(accelerationMeters.y), Vector(80, 155));
-        write(std::to_string(obj->force.x) + ", " + std::to_string(obj->force.y), Vector(80, 190));
-        write(std::to_string(momentum.x) + ", " + std::to_string(momentum.y), Vector(80, 225));
+        write(std::to_string(degrees), Vector(100, 85));
+        write(std::to_string(velocityMeters.x) + ", " + std::to_string(velocityMeters.y), Vector(100, 120));
+        write(std::to_string(accelerationMeters.x) + ", " + std::to_string(accelerationMeters.y), Vector(100, 155));
+        write(std::to_string(obj->force.x) + ", " + std::to_string(obj->force.y), Vector(100, 190));
+        write(std::to_string(momentum.x) + ", " + std::to_string(momentum.y), Vector(100, 225));
 
     }
 

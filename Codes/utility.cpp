@@ -1,5 +1,6 @@
 
 #include "World.hpp"
+#include "Material.hpp"
 #include <cmath>
 
 Vector change(Vector2f vector){
@@ -560,6 +561,7 @@ void resolveCollision(Manifold contact){
     }
 
     float e = std::min(obj1->restitution, obj2->restitution);
+    MaterialPairProperties materialProps = getMaterialPairProperties(obj1->material, obj2->material);
 
     float j = -(1.f + e) * Vector::dot(relativeVelocity, normal);
     j = j / (obj1->invMass + obj2->invMass);
@@ -593,8 +595,11 @@ void resolveCollisionWithRotation(Manifold contact){
     std::vector<Vector> r2List(contactCount, Vector::Zero());
     std::vector<float> normalImpulseList(contactCount, 0.f);
 
-    float staticFriction = std::sqrt(obj1->staticFriction * obj2->staticFriction);
-    float dynamicFriction = std::sqrt(obj1->dynamicFriction * obj2->dynamicFriction);
+    MaterialPairProperties materialProps = getMaterialPairProperties(obj1->material, obj2->material);
+
+    float staticFriction = materialProps.staticFriction;
+    float dynamicFriction = materialProps.dynamicFriction;
+    float rollingFriction = materialProps.rollingFriction;
 
     for(int i = 0; i < contactCount; i++){
 
@@ -663,6 +668,8 @@ void resolveCollisionWithRotation(Manifold contact){
 
     }
 
+    float totalNormalImpulse = 0.f;
+
     for(int i = 0; i < contactCount; i++){
 
         Vector impulse = impulseList[i];
@@ -677,7 +684,50 @@ void resolveCollisionWithRotation(Manifold contact){
         obj2->linearVelocity = obj2->linearVelocity + totalImpulse * obj2->invMass;
         obj2->angularVelocity = obj2->angularVelocity + Vector::cross(r2, totalImpulse) * obj2->invMoI;
 
+        totalNormalImpulse += normalImpulseList[i];
+
     }
+
+    auto applyRollingResistance = [&](Object* obj){
+
+        if(obj->isStatic || obj->type != 0) return;
+
+        if(totalNormalImpulse <= 0.f) return;
+
+        float rollingImpulseMag = rollingFriction * totalNormalImpulse;
+
+        float omega = obj->angularVelocity;
+        float angularImpulse = rollingImpulseMag * obj->radius;
+        float deltaOmega = angularImpulse * obj->invMoI;
+
+        if(std::fabs(omega) <= deltaOmega){
+
+            obj->angularVelocity = 0.f;
+
+        }else{
+
+            obj->angularVelocity -= std::copysign(deltaOmega, omega);
+
+        }
+
+        Vector tangent = Vector(-normal.y, normal.x).normalize();
+        Vector tangentialVelocity = obj->linearVelocity - normal * Vector::dot(obj->linearVelocity, normal);
+        float tangentialSpeed = Vector::dot(tangentialVelocity, tangent);
+
+        if(std::fabs(tangentialSpeed) > 1e-5f){
+
+            Vector tangentialDir = tangentialSpeed >= 0.f ? tangent : -tangent;
+            float impulseNeeded = std::fabs(tangentialSpeed) * obj->mass;
+            float translationalImpulse = std::min(rollingImpulseMag, impulseNeeded);
+
+            obj->linearVelocity = obj->linearVelocity - tangentialDir * (translationalImpulse * obj->invMass);
+
+        }
+
+    };
+
+    applyRollingResistance(obj1);
+    applyRollingResistance(obj2);
 
 }
 

@@ -1047,4 +1047,5 @@ CMakeFiles/PhysicsEngine.dir/Codes/World.cpp.o: \
   /opt/homebrew/include/SFML/Graphics/Glsl.inl \
   /opt/homebrew/include/SFML/Graphics/Sprite.hpp \
   /opt/homebrew/include/SFML/Graphics/Text.hpp \
-  /opt/homebrew/include/SFML/Graphics/VertexBuffer.hpp
+  /opt/homebrew/include/SFML/Graphics/VertexBuffer.hpp \
+  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp

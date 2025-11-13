@@ -1050,6 +1050,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/main.cpp.o: \
   /opt/homebrew/include/SFML/Graphics/Sprite.hpp \
   /opt/homebrew/include/SFML/Graphics/Text.hpp \
   /opt/homebrew/include/SFML/Graphics/VertexBuffer.hpp \
+  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp \
   /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/config.hpp \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/random \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/__random/bernoulli_distribution.h \

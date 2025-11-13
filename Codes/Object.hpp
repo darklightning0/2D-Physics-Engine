@@ -4,6 +4,7 @@
 #include "AABB.hpp"
 #include "Vector.hpp"
 #include "Transform.hpp"
+#include "Material.hpp"
 #include <vector>
 #include <limits>
 #include <algorithm>
@@ -24,8 +25,7 @@ public:
     Vector force;
 
     float restitution;
-    float staticFriction;
-    float dynamicFriction;
+    Material material;
     sf::Shape* shape;
     sf::Color color;
     bool isStatic;
@@ -45,11 +45,10 @@ public:
     bool aabbUpdateRequired;
 
     Object(float radius, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity,
-        float mass, float restitution, sf::Shape* shape, sf::Color color, bool isStatic, int type,
-        float staticFriction = 0.5f, float dynamicFriction = 0.3f)
+        float mass, float restitution, Material material, sf::Shape* shape, sf::Color color, bool isStatic, int type)
         : radius(radius), width(width), height(height), position(position), linearVelocity(linearVelocity),
           angle(angle), angularVelocity(angularVelocity), force(Vector::Zero()), mass(mass), restitution(restitution),
-          staticFriction(staticFriction), dynamicFriction(dynamicFriction), shape(shape), color(color), isStatic(isStatic), type(type),
+          material(material), shape(shape), color(color), isStatic(isStatic), type(type),
           transformUpdateRequired(true), aabbUpdateRequired(true){
 
         MoI = getMomentOfInertia();
