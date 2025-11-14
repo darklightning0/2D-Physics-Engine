@@ -2,8 +2,8 @@
 #define JOINT_HPP
 
 #include "Object.hpp"
-#include <algorithm>
 #include <cmath>
+#include <algorithm>
 
 inline Vector rotateLocalToWorld(const Vector& local, float angle){
     float c = std::cos(angle);
@@ -17,24 +17,6 @@ inline Vector rotateWorldToLocal(const Vector& world, float angle){
     return Vector(c * world.x + s * world.y, -s * world.x + c * world.y);
 }
 
-inline float det2x2(float a, float b, float c, float d){
-    return a * d - b * c;
-}
-
-inline void invert2x2(float a, float b, float c, float d, float& outA, float& outB, float& outC, float& outD){
-    float det = det2x2(a, b, c, d);
-    if(std::fabs(det) < 1e-6f){
-        outA = outD = 0.f;
-        outB = outC = 0.f;
-        return;
-    }
-    float invDet = 1.f / det;
-    outA =  d * invDet;
-    outB = -b * invDet;
-    outC = -c * invDet;
-    outD =  a * invDet;
-}
-
 struct DistanceJoint{
     Object* objA;
     Object* objB;
@@ -46,7 +28,6 @@ struct DistanceJoint{
     float impulse;
     bool enabled;
 
-    // cached per-step data
     Vector rA;
     Vector rB;
     Vector axis;
@@ -144,95 +125,51 @@ inline void distanceJointApplyImpulse(DistanceJoint& joint){
     }
 }
 
-struct RevoluteJoint{
-
+struct SpringJoint{
     Object* objA;
     Object* objB;
     Vector localAnchorA;
     Vector localAnchorB;
-    float biasFactor;
-    float softness;
-    bool enabled;
+    float restLength;
+    float stiffness;
+    float damping;
 
-    Vector rA;
-    Vector rB;
-    float mass00, mass01, mass10, mass11;
-    Vector bias;
-    Vector impulse;
-
-    RevoluteJoint(Object* a, Object* b, Vector anchorA, Vector anchorB, float biasFactor = 0.2f, float softness = 0.f)
-        : objA(a), objB(b), localAnchorA(anchorA), localAnchorB(anchorB),
-          biasFactor(biasFactor), softness(softness), enabled(true),
-          rA(Vector::Zero()), rB(Vector::Zero()),
-          mass00(0.f), mass01(0.f), mass10(0.f), mass11(0.f),
-          bias(Vector::Zero()), impulse(Vector::Zero()){}
+    SpringJoint(Object* a, Object* b, const Vector& anchorA, const Vector& anchorB, float restLength, float stiffness, float damping)
+        : objA(a), objB(b), localAnchorA(anchorA), localAnchorB(anchorB), restLength(restLength), stiffness(stiffness), damping(damping){}
 };
 
-inline void revoluteJointPreStep(RevoluteJoint& joint, float dt){
+inline void applySpringForces(SpringJoint& spring, float dt){
 
-    if(!joint.enabled || !joint.objA || !joint.objB) return;
+    if(!spring.objA || !spring.objB) return;
 
-    joint.rA = rotateLocalToWorld(joint.localAnchorA, joint.objA->angle);
-    joint.rB = rotateLocalToWorld(joint.localAnchorB, joint.objB->angle);
+    Vector rA = rotateLocalToWorld(spring.localAnchorA, spring.objA->angle);
+    Vector rB = rotateLocalToWorld(spring.localAnchorB, spring.objB->angle);
 
-    float mA = joint.objA->invMass;
-    float mB = joint.objB->invMass;
-    float iA = joint.objA->invMoI;
-    float iB = joint.objB->invMoI;
+    Vector worldA = spring.objA->position + rA;
+    Vector worldB = spring.objB->position + rB;
 
-    float k11 = mA + mB + joint.rA.y * joint.rA.y * iA + joint.rB.y * joint.rB.y * iB;
-    float k12 = -joint.rA.x * joint.rA.y * iA - joint.rB.x * joint.rB.y * iB;
-    float k22 = mA + mB + joint.rA.x * joint.rA.x * iA + joint.rB.x * joint.rB.x * iB;
+    Vector delta = worldB - worldA;
+    float length = delta.magnitude();
+    if(length < 1e-5f) return;
 
-    if(joint.softness > 0.f){
-        float sTerm = joint.softness / std::max(dt, 0.0001f);
-        k11 += sTerm;
-        k22 += sTerm;
+    Vector dir = delta * (1.f / length);
+
+    Vector velA = spring.objA->linearVelocity + Vector(-rA.y, rA.x) * spring.objA->angularVelocity;
+    Vector velB = spring.objB->linearVelocity + Vector(-rB.y, rB.x) * spring.objB->angularVelocity;
+    float relVel = Vector::dot(velB - velA, dir);
+
+    float displacement = length - spring.restLength;
+    float forceMag = -spring.stiffness * displacement - spring.damping * relVel;
+    Vector impulse = dir * (forceMag * dt);
+
+    if(spring.objA->invMass > 0.f){
+        spring.objA->linearVelocity = spring.objA->linearVelocity - impulse * spring.objA->invMass;
+        spring.objA->angularVelocity = spring.objA->angularVelocity - Vector::cross(rA, impulse) * spring.objA->invMoI;
     }
 
-    invert2x2(k11, k12, k12, k22, joint.mass00, joint.mass01, joint.mass10, joint.mass11);
-
-    Vector worldA = joint.objA->position + joint.rA;
-    Vector worldB = joint.objB->position + joint.rB;
-    Vector C = worldB - worldA;
-    float beta = joint.biasFactor / std::max(dt, 0.0001f);
-    joint.bias = C * beta;
-
-    Vector P = joint.impulse;
-
-    if(joint.objA->invMass > 0.f){
-        joint.objA->linearVelocity = joint.objA->linearVelocity - P * joint.objA->invMass;
-        joint.objA->angularVelocity = joint.objA->angularVelocity - Vector::cross(joint.rA, P) * joint.objA->invMoI;
-    }
-
-    if(joint.objB->invMass > 0.f){
-        joint.objB->linearVelocity = joint.objB->linearVelocity + P * joint.objB->invMass;
-        joint.objB->angularVelocity = joint.objB->angularVelocity + Vector::cross(joint.rB, P) * joint.objB->invMoI;
-    }
-}
-
-inline void revoluteJointApplyImpulse(RevoluteJoint& joint){
-
-    if(!joint.enabled) return;
-
-    Vector velA = joint.objA->linearVelocity + Vector(-joint.rA.y, joint.rA.x) * joint.objA->angularVelocity;
-    Vector velB = joint.objB->linearVelocity + Vector(-joint.rB.y, joint.rB.x) * joint.objB->angularVelocity;
-    Vector relVel = velB - velA + joint.bias;
-
-    Vector lambda;
-    lambda.x = -(joint.mass00 * relVel.x + joint.mass01 * relVel.y);
-    lambda.y = -(joint.mass10 * relVel.x + joint.mass11 * relVel.y);
-
-    joint.impulse = joint.impulse + lambda;
-
-    if(joint.objA->invMass > 0.f){
-        joint.objA->linearVelocity = joint.objA->linearVelocity - lambda * joint.objA->invMass;
-        joint.objA->angularVelocity = joint.objA->angularVelocity - Vector::cross(joint.rA, lambda) * joint.objA->invMoI;
-    }
-
-    if(joint.objB->invMass > 0.f){
-        joint.objB->linearVelocity = joint.objB->linearVelocity + lambda * joint.objB->invMass;
-        joint.objB->angularVelocity = joint.objB->angularVelocity + Vector::cross(joint.rB, lambda) * joint.objB->invMoI;
+    if(spring.objB->invMass > 0.f){
+        spring.objB->linearVelocity = spring.objB->linearVelocity + impulse * spring.objB->invMass;
+        spring.objB->angularVelocity = spring.objB->angularVelocity + Vector::cross(rB, impulse) * spring.objB->invMoI;
     }
 }
 

@@ -9,6 +9,7 @@
 #include <limits>
 #include <algorithm>
 #include <stdexcept>
+#include <cmath>
 
 class Object {
 public:
@@ -30,6 +31,7 @@ public:
     sf::Color color;
     bool isStatic;
     int type;
+    bool isBox;
 
     float mass;
     float invMass;
@@ -45,38 +47,25 @@ public:
     bool aabbUpdateRequired;
 
     Object(float radius, float width, float height, Vector position, Vector linearVelocity, float angle, float angularVelocity,
-        float mass, float restitution, Material material, sf::Shape* shape, sf::Color color, bool isStatic, int type)
+        float mass, float restitution, Material material, sf::Shape* shape, sf::Color color, bool isStatic, int type, bool boxShape = false)
         : radius(radius), width(width), height(height), position(position), linearVelocity(linearVelocity),
           angle(angle), angularVelocity(angularVelocity), force(Vector::Zero()), mass(mass), restitution(restitution),
-          material(material), shape(shape), color(color), isStatic(isStatic), type(type),
+          material(material), shape(shape), color(color), isStatic(isStatic), type(type), isBox(boxShape),
           transformUpdateRequired(true), aabbUpdateRequired(true){
 
-        MoI = getMomentOfInertia();
+        if(type == 1){
 
-        if(isStatic){
-
-            invMass = 0;
-            invMoI = 0;
-
-        }else{
-
-            invMass = 1.f / mass;
-            invMoI = 1.f / MoI;
-
-        }
-
-        if(type == 1){ 
-
-            vertices = createBoxVertices(width, height);
-            transformedVertices.resize(vertices.size());
-            density = mass / (width * height);
+            if(isBox){
+                setVertices(createBoxVertices(width, height));
+            }else{
+                vertices.clear();
+                transformedVertices.clear();
+            }
 
         }else{
 
             vertices.clear();
             transformedVertices.clear();
-
-            density = mass / (M_PI * radius * radius);
 
         }
 
@@ -88,6 +77,8 @@ public:
 
         }
 
+        updateDerivedProperties();
+
     }
 
     Vector getPosition(){
@@ -96,16 +87,102 @@ public:
 
     }
 
-    float getMomentOfInertia(){
+    void setVertices(const std::vector<Vector>& verts){
+
+        vertices = verts;
+
+        if (!isBox && vertices.size() >= 3){
+
+            Vector centroid = computePolygonCentroid(vertices);
+
+            if(std::isfinite(centroid.x) && std::isfinite(centroid.y)){
+                for(Vector& v : vertices){
+                    v = v - centroid;
+                }
+                position = position + centroid;
+                if(shape){
+                    shape->setPosition(position.x, position.y);
+                }
+            }
+
+        }
+
+        transformedVertices.resize(vertices.size());
+        updateBoundsFromVertices();
+        syncConvexShape();
+        transformUpdateRequired = true;
+        aabbUpdateRequired = true;
+        updateDerivedProperties();
+
+    }
+
+    void setBoxDimensions(float newWidth, float newHeight){
+
+        width = newWidth;
+        height = newHeight;
+        isBox = true;
+        setVertices(createBoxVertices(width, height));
+
+        if(auto rectShape = dynamic_cast<sf::RectangleShape*>(shape)){
+            rectShape->setSize(sf::Vector2f(width, height));
+            rectShape->setOrigin(width / 2.f, height / 2.f);
+        }
+
+    }
+
+    bool isBoxShape() const{
+        return isBox;
+    }
+
+    void updateDerivedProperties(){
+
+        if(isStatic){
+            invMass = 0.f;
+            invMoI = 0.f;
+        }else{
+            invMass = mass > 0.f ? 1.f / mass : 0.f;
+        }
 
         if(type == 0){
 
-            return 0.5 * mass * radius * radius;
+            float area = static_cast<float>(M_PI) * radius * radius;
+            density = area > 0.f ? mass / area : 0.f;
+            MoI = 0.5f * mass * radius * radius;
+
+        }else if(!vertices.empty()){
+
+            float areaTwice = 0.f;
+            float inertiaNumerator = 0.f;
+            size_t count = vertices.size();
+            for(size_t i = 0; i < count; ++i){
+                const Vector& p0 = vertices[i];
+                const Vector& p1 = vertices[(i + 1) % count];
+                float cross = Vector::cross(p0, p1);
+                areaTwice += cross;
+                float term = (p0.x * p0.x + p0.x * p1.x + p1.x * p1.x) + (p0.y * p0.y + p0.y * p1.y + p1.y * p1.y);
+                inertiaNumerator += cross * term;
+            }
+            float area = std::fabs(areaTwice) * 0.5f;
+            if(area <= 0.f){
+                MoI = 0.f;
+                density = 0.f;
+            }else{
+                density = mass / area;
+                MoI = (density / 12.f) * std::fabs(inertiaNumerator);
+            }
 
         }else{
 
-            return (1.f/12.f) * mass * (height * height + width * width);
+            float area = width * height;
+            density = area > 0.f ? mass / area : 0.f;
+            MoI = (mass / 12.f) * (height * height + width * width);
 
+        }
+
+        if(isStatic || mass <= 0.f || MoI <= 0.f){
+            invMoI = 0.f;
+        }else{
+            invMoI = 1.f / MoI;
         }
 
     }
@@ -197,13 +274,13 @@ public:
             float maxX = std::numeric_limits<float>::lowest();
             float maxY = std::numeric_limits<float>::lowest();
     
-            if (type == 1){
+            if(!vertices.empty()){
 
-                std::vector<Vector> vertices = getTransformedVertices();
+                std::vector<Vector> verts = getTransformedVertices();
     
-                for (size_t i = 0; i < vertices.size(); i++){
+                for (size_t i = 0; i < verts.size(); i++){
 
-                    Vector v = vertices[i];
+                    Vector v = verts[i];
     
                     if(v.x < minX) {minX = v.x;}
                     if(v.x > maxX) {maxX = v.x;}
@@ -213,7 +290,7 @@ public:
                 }
 
             }else if(this->type == 0){
-                
+
                 minX = this->position.x - this->radius;
                 minY = this->position.y - this->radius;
                 maxX = this->position.x + this->radius;
@@ -227,6 +304,78 @@ public:
         }
     
         return aabb;
+    }
+
+private:
+
+    void updateBoundsFromVertices(){
+
+        if(vertices.empty()){
+            width = 0.f;
+            height = 0.f;
+            return;
+        }
+
+        float minX = std::numeric_limits<float>::max();
+        float minY = std::numeric_limits<float>::max();
+        float maxX = std::numeric_limits<float>::lowest();
+        float maxY = std::numeric_limits<float>::lowest();
+
+        for(const Vector& v : vertices){
+            minX = std::min(minX, v.x);
+            minY = std::min(minY, v.y);
+            maxX = std::max(maxX, v.x);
+            maxY = std::max(maxY, v.y);
+        }
+
+        width = maxX - minX;
+        height = maxY - minY;
+
+    }
+
+    void syncConvexShape(){
+
+        auto convex = dynamic_cast<sf::ConvexShape*>(shape);
+        if(!convex) return;
+
+        convex->setPointCount(vertices.size());
+        for(size_t i = 0; i < vertices.size(); ++i){
+            convex->setPoint(i, sf::Vector2f(vertices[i].x, vertices[i].y));
+        }
+        convex->setOrigin(0.f, 0.f);
+
+    }
+
+    Vector computePolygonCentroid(const std::vector<Vector>& poly) const{
+
+        if(poly.empty()){
+            return Vector::Zero();
+        }
+
+        float crossSum = 0.f;
+        Vector centroid(0.f, 0.f);
+        size_t count = poly.size();
+
+        for(size_t i = 0; i < count; ++i){
+            const Vector& p0 = poly[i];
+            const Vector& p1 = poly[(i + 1) % count];
+            float cross = Vector::cross(p0, p1);
+            crossSum += cross;
+            centroid.x += (p0.x + p1.x) * cross;
+            centroid.y += (p0.y + p1.y) * cross;
+        }
+
+        if(std::fabs(crossSum) < 1e-5f){
+            Vector avg(0.f, 0.f);
+            for(const Vector& p : poly){
+                avg = avg + p;
+            }
+            return avg * (1.f / static_cast<float>(count));
+        }
+
+        float inv = 1.f / (3.f * crossSum);
+        return centroid * inv;
+
     }
     
 

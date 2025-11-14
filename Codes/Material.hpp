@@ -1,6 +1,8 @@
 #ifndef MATERIAL_HPP
 #define MATERIAL_HPP
 
+#include <string>
+
 enum class Material{
     Default,
     Wood,
@@ -55,6 +57,27 @@ inline MaterialPairProperties getMaterialPairProperties(Material a, Material b){
     props.dynamicFriction = frictionMatrix[i][j][1];
     props.rollingFriction = frictionMatrix[i][j][2];
     return props;
+}
+
+inline const char* materialToString(Material material){
+    switch(material){
+        case Material::Wood: return "Wood";
+        case Material::Steel: return "Steel";
+        case Material::Rubber: return "Rubber";
+        case Material::Ice: return "Ice";
+        case Material::Mud: return "Mud";
+        case Material::Default:
+        default: return "Default";
+    }
+}
+
+inline Material materialFromString(const std::string& name){
+    if(name == "Wood") return Material::Wood;
+    if(name == "Steel") return Material::Steel;
+    if(name == "Rubber") return Material::Rubber;
+    if(name == "Ice") return Material::Ice;
+    if(name == "Mud") return Material::Mud;
+    return Material::Default;
 }
 
 #endif

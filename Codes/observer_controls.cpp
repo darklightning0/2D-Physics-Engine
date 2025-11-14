@@ -24,13 +24,13 @@ void spawner(Event event, RenderWindow &window, World &world){
             colorDist(gen)
         );
 
-        if(event.key.code == Keyboard::Key::Num1){
+        if(event.key.code == Keyboard::Key::Z){
 
             float spawnRadiusPixels = metersToPixels(0.3f);
             world.createCircle(world, spawnRadiusPixels, spawnPosition, Vector(0.f, 0.f), 0.f, 0.f, 2.f, -1.f, randomColor, false, Material::Steel);
 
         } 
-        else if (event.key.code == Keyboard::Key::Num2){
+        else if (event.key.code == Keyboard::Key::X){
 
             float spawnWidthPixels = metersToPixels(1.0f);
             float spawnHeightPixels = metersToPixels(0.4f);
