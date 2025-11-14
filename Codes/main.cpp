@@ -59,7 +59,7 @@ int main(){
     RenderWindow window(VideoMode(1200, 800), "Physics Engine");
     //window.setFramerateLimit(60);
 
-    World world(Vector(0, 0));
+    World world(Vector(0, 9.81f * PIXELS_PER_METER));
     float timeScale = 1.f;
     std::string sceneFile = DEFAULT_SCENE_FILE;
     std::string statusMessage;
