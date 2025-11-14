@@ -54,6 +54,14 @@ DistanceJoint& World::createDistanceJoint(Object& objA, Object& objB, const Vect
 
 }
 
+RevoluteJoint& World::createRevoluteJoint(Object& objA, Object& objB, const Vector& localAnchorA, const Vector& localAnchorB, float biasFactor, float softness){
+
+    RevoluteJoint* joint = new RevoluteJoint(&objA, &objB, localAnchorA, localAnchorB, biasFactor, softness);
+    revoluteJoints.push_back(joint);
+    return *joint;
+
+}
+
 inline void World::removeJointsForObject(Object* object){
 
     distanceJoints.erase(
@@ -68,6 +76,20 @@ inline void World::removeJointsForObject(Object* object){
                 return false;
             }),
         distanceJoints.end()
+    );
+
+    revoluteJoints.erase(
+        std::remove_if(revoluteJoints.begin(), revoluteJoints.end(),
+            [&](RevoluteJoint* joint){
+                if(!joint) return true;
+                if(object == nullptr) return false;
+                if(joint->objA == object || joint->objB == object){
+                    delete joint;
+                    return true;
+                }
+                return false;
+            }),
+        revoluteJoints.end()
     );
 
 }
@@ -90,6 +112,9 @@ void World::update(float stepTime, int iterations){
         for(DistanceJoint* joint : distanceJoints){
             distanceJointPreStep(*joint, stepTime);
         }
+        for(RevoluteJoint* joint : revoluteJoints){
+            revoluteJointPreStep(*joint, stepTime);
+        }
 
         potentialPairs.clear();
         generatePotentialPairs(objects, potentialPairs);
@@ -106,6 +131,9 @@ void World::update(float stepTime, int iterations){
         for(int i = 0; i < jointIterations; ++i){
             for(DistanceJoint* joint : distanceJoints){
                 distanceJointApplyImpulse(*joint);
+            }
+            for(RevoluteJoint* joint : revoluteJoints){
+                revoluteJointApplyImpulse(*joint);
             }
         }
 
@@ -144,6 +172,18 @@ void World::update(float stepTime, int iterations){
                 }),
             distanceJoints.end());
 
+        revoluteJoints.erase(
+            std::remove_if(revoluteJoints.begin(), revoluteJoints.end(),
+                [](RevoluteJoint* joint){
+                    if(!joint) return true;
+                    if(!joint->objA || !joint->objB){
+                        delete joint;
+                        return true;
+                    }
+                    return false;
+                }),
+            revoluteJoints.end());
+
     }
         
 }
@@ -175,5 +215,11 @@ const std::vector<Manifold*>& World::getIndicators() const{
 const std::vector<DistanceJoint*>& World::getDistanceJoints() const{
 
     return distanceJoints;
+
+}
+
+const std::vector<RevoluteJoint*>& World::getRevoluteJoints() const{
+
+    return revoluteJoints;
 
 }

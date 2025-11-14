@@ -10,13 +10,48 @@
 using namespace std;
 using namespace sf;
 
+bool pointInsideObject(const Object* obj, const sf::Vector2f& point){
+    if(!obj) return false;
+    Vector worldPoint(point.x, point.y);
+    Vector local = rotateWorldToLocal(worldPoint - obj->position, obj->angle);
+
+    if(obj->type == 0){
+        return local.magnitude() <= obj->radius;
+    }
+
+    float halfW = obj->width * 0.5f;
+    float halfH = obj->height * 0.5f;
+    return (local.x >= -halfW && local.x <= halfW && local.y >= -halfH && local.y <= halfH);
+}
+
+Vector clampLocalAnchorToShape(const Object& obj, const Vector& localAnchor){
+    if(obj.type == 0){
+        float len = localAnchor.magnitude();
+        if(len > obj.radius && len > 0.f){
+            return localAnchor * (obj.radius / len);
+        }
+        return localAnchor;
+    }
+
+    float halfW = obj.width * 0.5f;
+    float halfH = obj.height * 0.5f;
+    float clampedX = std::clamp(localAnchor.x, -halfW, halfW);
+    float clampedY = std::clamp(localAnchor.y, -halfH, halfH);
+    return Vector(clampedX, clampedY);
+}
+
+Vector computeLocalAnchorOnShape(const Object& obj, const Vector& worldPoint){
+    Vector local = rotateWorldToLocal(worldPoint - obj.position, obj.angle);
+    return clampLocalAnchorToShape(obj, local);
+}
+
 Object* pickObjectAt(const std::vector<Object*>& objects, const sf::Vector2f& mousePosition){
     for(auto it = objects.rbegin(); it != objects.rend(); ++it){
         Object* obj = *it;
         if(!obj || !obj->shape) continue;
 
         sf::FloatRect bounds = obj->shape->getGlobalBounds();
-        if(bounds.contains(mousePosition)){
+        if(bounds.contains(mousePosition) && pointInsideObject(obj, mousePosition)){
             return obj;
         }
     }
@@ -151,7 +186,8 @@ int main(){
     bool stepOnce = false;
     bool uiVisible = true;
     Object* selectedObject = nullptr;
-    bool jointCreationActive = false;
+    bool distanceCreationActive = false;
+    bool hingeCreationActive = false;
     Object* jointStartObject = nullptr;
     Vector jointStartLocalAnchor = Vector::Zero();
     float displayedStepTime = 0.f;
@@ -159,21 +195,15 @@ int main(){
     const float velocityNudge = metersToPixels(1.5f);
     const float angularNudge = Vector::angleToRad(15.f);
 
-    auto adjustLinearVelocity = [&](const Vector& delta){
-        if(selectedObject && !selectedObject->isStatic){
-            selectedObject->linearVelocity = selectedObject->linearVelocity + delta;
-        }
-    };
-
-    auto adjustAngularVelocity = [&](float delta){
-        if(selectedObject && !selectedObject->isStatic){
-            selectedObject->angularVelocity += delta;
-        }
-    };
-
     auto getMouseWorld = [&]() -> Vector{
         sf::Vector2i mp = sf::Mouse::getPosition(window);
         return Vector(static_cast<float>(mp.x), static_cast<float>(mp.y));
+    };
+
+    auto cancelJointCreation = [&](){
+        distanceCreationActive = false;
+        hingeCreationActive = false;
+        jointStartObject = nullptr;
     };
 
     while(window.isOpen()){
@@ -194,23 +224,28 @@ int main(){
 
                 sf::Vector2f mousePos(static_cast<float>(event.mouseButton.x), static_cast<float>(event.mouseButton.y));
 
-                if(jointCreationActive && jointStartObject){
+                if((distanceCreationActive || hingeCreationActive) && jointStartObject){
 
                     Object* target = pickObjectAt(world.getObjects(), mousePos);
                     if(target && target != jointStartObject){
 
                         Vector worldPoint(mousePos.x, mousePos.y);
-                        Vector localAnchorB = rotateWorldToLocal(worldPoint - target->position, target->angle);
-                        Vector worldAnchorA = jointStartObject->position + rotateLocalToWorld(jointStartLocalAnchor, jointStartObject->angle);
-                        Vector worldAnchorB = target->position + rotateLocalToWorld(localAnchorB, target->angle);
-                        float restLength = (worldAnchorB - worldAnchorA).magnitude();
-                        world.createDistanceJoint(*jointStartObject, *target, jointStartLocalAnchor, localAnchorB, restLength);
+                        Vector localAnchorB = computeLocalAnchorOnShape(*target, worldPoint);
+
+                        if(distanceCreationActive){
+                            Vector worldAnchorA = jointStartObject->position + rotateLocalToWorld(jointStartLocalAnchor, jointStartObject->angle);
+                            Vector worldAnchorB = target->position + rotateLocalToWorld(localAnchorB, target->angle);
+                            float restLength = (worldAnchorB - worldAnchorA).magnitude();
+                            world.createDistanceJoint(*jointStartObject, *target, jointStartLocalAnchor, localAnchorB, restLength);
+                        }else{
+                            world.createRevoluteJoint(*jointStartObject, *target, jointStartLocalAnchor, localAnchorB);
+                        }
+
                         selectedObject = target;
 
                     }
 
-                    jointCreationActive = false;
-                    jointStartObject = nullptr;
+                    cancelJointCreation();
 
                 }else{
 
@@ -237,24 +272,6 @@ int main(){
                     case Keyboard::Up:
                         timeScale = std::min(MAX_TIME_SCALE, timeScale + TIME_SCALE_STEP);
                         break;
-                    case Keyboard::W:
-                        adjustLinearVelocity(Vector(0.f, -velocityNudge));
-                        break;
-                    case Keyboard::S:
-                        adjustLinearVelocity(Vector(0.f, velocityNudge));
-                        break;
-                    case Keyboard::A:
-                        adjustLinearVelocity(Vector(-velocityNudge, 0.f));
-                        break;
-                    case Keyboard::D:
-                        adjustLinearVelocity(Vector(velocityNudge, 0.f));
-                        break;
-                    case Keyboard::Q:
-                        adjustAngularVelocity(-angularNudge);
-                        break;
-                    case Keyboard::E:
-                        adjustAngularVelocity(angularNudge);
-                        break;
                     case Keyboard::R:
                         if(selectedObject && !selectedObject->isStatic){
                             selectedObject->linearVelocity = Vector::Zero();
@@ -263,15 +280,24 @@ int main(){
                         break;
                     case Keyboard::J:
                         if(selectedObject){
-                            jointCreationActive = true;
+                            distanceCreationActive = true;
+                            hingeCreationActive = false;
                             jointStartObject = selectedObject;
                             Vector mouseWorld = getMouseWorld();
-                            jointStartLocalAnchor = rotateWorldToLocal(mouseWorld - selectedObject->position, selectedObject->angle);
+                            jointStartLocalAnchor = computeLocalAnchorOnShape(*selectedObject, mouseWorld);
+                        }
+                        break;
+                    case Keyboard::H:
+                        if(selectedObject){
+                            hingeCreationActive = true;
+                            distanceCreationActive = false;
+                            jointStartObject = selectedObject;
+                            Vector mouseWorld = getMouseWorld();
+                            jointStartLocalAnchor = computeLocalAnchorOnShape(*selectedObject, mouseWorld);
                         }
                         break;
                     case Keyboard::Escape:
-                        jointCreationActive = false;
-                        jointStartObject = nullptr;
+                        cancelJointCreation();
                         break;
                     default:
                         break;
@@ -281,6 +307,26 @@ int main(){
 
             spawner(event, window, world);
             
+        }
+
+        if(selectedObject && !selectedObject->isStatic){
+            Vector heldInput = Vector::Zero();
+            if(sf::Keyboard::isKeyPressed(Keyboard::W)) heldInput.y -= 1.f;
+            if(sf::Keyboard::isKeyPressed(Keyboard::S)) heldInput.y += 1.f;
+            if(sf::Keyboard::isKeyPressed(Keyboard::A)) heldInput.x -= 1.f;
+            if(sf::Keyboard::isKeyPressed(Keyboard::D)) heldInput.x += 1.f;
+
+            if(heldInput.magnitudeSquared() > 0.f){
+                Vector dir = heldInput.normalize();
+                selectedObject->linearVelocity = selectedObject->linearVelocity + dir * velocityNudge;
+            }
+
+            float angularInput = 0.f;
+            if(sf::Keyboard::isKeyPressed(Keyboard::Q)) angularInput -= 1.f;
+            if(sf::Keyboard::isKeyPressed(Keyboard::E)) angularInput += 1.f;
+            if(angularInput != 0.f){
+                selectedObject->angularVelocity += angularInput * angularNudge;
+            }
         }
 
         bool shouldSimulate = !paused || stepOnce;
@@ -346,12 +392,41 @@ int main(){
             window.draw(line, 2, sf::Lines);
         }
 
-        if(jointCreationActive && jointStartObject){
+        for(const RevoluteJoint* joint : world.getRevoluteJoints()){
+            if(!joint || !joint->objA || !joint->objB) continue;
+            Vector worldA = joint->objA->position + rotateLocalToWorld(joint->localAnchorA, joint->objA->angle);
+            Vector worldB = joint->objB->position + rotateLocalToWorld(joint->localAnchorB, joint->objB->angle);
+            sf::Vertex crossLines[4] = {
+                sf::Vertex(sf::Vector2f(worldA.x - 6.f, worldA.y - 6.f), sf::Color::Magenta),
+                sf::Vertex(sf::Vector2f(worldA.x + 6.f, worldA.y + 6.f), sf::Color::Magenta),
+                sf::Vertex(sf::Vector2f(worldA.x + 6.f, worldA.y - 6.f), sf::Color::Magenta),
+                sf::Vertex(sf::Vector2f(worldA.x - 6.f, worldA.y + 6.f), sf::Color::Magenta)
+            };
+            window.draw(crossLines, 2, sf::Lines);
+            window.draw(crossLines + 2, 2, sf::Lines);
+
+            sf::Vertex link[] = {
+                sf::Vertex(sf::Vector2f(worldA.x, worldA.y), sf::Color::Magenta),
+                sf::Vertex(sf::Vector2f(worldB.x, worldB.y), sf::Color::Magenta)
+            };
+            window.draw(link, 2, sf::Lines);
+        }
+
+        if(distanceCreationActive && jointStartObject){
             Vector start = jointStartObject->position + rotateLocalToWorld(jointStartLocalAnchor, jointStartObject->angle);
             Vector mouseWorld = getMouseWorld();
             sf::Vertex line[] = {
                 sf::Vertex(sf::Vector2f(start.x, start.y), sf::Color::Yellow),
                 sf::Vertex(sf::Vector2f(mouseWorld.x, mouseWorld.y), sf::Color::Yellow)
+            };
+            window.draw(line, 2, sf::Lines);
+        }
+        else if(hingeCreationActive && jointStartObject){
+            Vector start = jointStartObject->position + rotateLocalToWorld(jointStartLocalAnchor, jointStartObject->angle);
+            Vector mouseWorld = getMouseWorld();
+            sf::Vertex line[] = {
+                sf::Vertex(sf::Vector2f(start.x, start.y), sf::Color::Magenta),
+                sf::Vertex(sf::Vector2f(mouseWorld.x, mouseWorld.y), sf::Color::Magenta)
             };
             window.draw(line, 2, sf::Lines);
         }
@@ -386,6 +461,7 @@ int main(){
             drawLine("Time Scale: " + formatFloat(timeScale));
             drawLine("Objects: " + std::to_string(objects.size()));
             drawLine("Joints: " + std::to_string(world.getDistanceJoints().size()));
+            drawLine("Hinges: " + std::to_string(world.getRevoluteJoints().size()));
             drawLine("Selected: " + std::string(selectedObject ? materialToString(selectedObject->material) : "None"));
             lineY += 6.f;
             drawLine("Controls:");
@@ -396,11 +472,13 @@ int main(){
             drawLine(" W/A/S/D - Nudge velocity");
             drawLine(" Q/E - Spin, R - Reset");
             drawLine(" 1/2 - Spawn circle/box");
-            drawLine(" J - Start joint (Esc cancel)");
+            drawLine(" J - Distance joint start");
+            drawLine(" H - Hinge joint start");
+            drawLine(" Esc - Cancel joint creation");
 
-            if(jointCreationActive){
+            if(distanceCreationActive || hingeCreationActive){
                 lineY += 6.f;
-                drawLine("Joint creation: click target body...");
+                drawLine(std::string(hingeCreationActive ? "Hinge" : "Distance") + " joint: click target body...");
             }
 
             if(selectedObject){
