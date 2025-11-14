@@ -1046,4 +1046,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/utility.cpp.o: \
   /opt/homebrew/include/SFML/Graphics/Sprite.hpp \
   /opt/homebrew/include/SFML/Graphics/Text.hpp \
   /opt/homebrew/include/SFML/Graphics/VertexBuffer.hpp \
-  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp
+  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Material.hpp \
+  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/CollisionCache.hpp \
+  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/Joint.hpp \
+  /Users/efekapukulak/Desktop/Hobbies/Coding/C++/Projects/PhysicsEngine/Codes/BroadPhase.hpp

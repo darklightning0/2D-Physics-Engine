@@ -39,6 +39,39 @@ Object& World::createCircle(World& world, float radius, Vector position, Vector 
 
 }
 
+DistanceJoint& World::createDistanceJoint(Object& objA, Object& objB, const Vector& localAnchorA, const Vector& localAnchorB, float restLength, float frequencyHz, float dampingRatio){
+
+    float actualRest = restLength;
+    if(actualRest < 0.f){
+        Vector worldA = objA.position + rotateLocalToWorld(localAnchorA, objA.angle);
+        Vector worldB = objB.position + rotateLocalToWorld(localAnchorB, objB.angle);
+        actualRest = (worldB - worldA).magnitude();
+    }
+
+    DistanceJoint* joint = new DistanceJoint(&objA, &objB, localAnchorA, localAnchorB, actualRest, frequencyHz, dampingRatio);
+    distanceJoints.push_back(joint);
+    return *joint;
+
+}
+
+inline void World::removeJointsForObject(Object* object){
+
+    distanceJoints.erase(
+        std::remove_if(distanceJoints.begin(), distanceJoints.end(),
+            [&](DistanceJoint* joint){
+                if(!joint) return true;
+                if(object == nullptr) return false;
+                if(joint->objA == object || joint->objB == object){
+                    delete joint;
+                    return true;
+                }
+                return false;
+            }),
+        distanceJoints.end()
+    );
+
+}
+
 void World::update(float stepTime, int iterations){
 
     stepTime /= iterations;
@@ -51,15 +84,29 @@ void World::update(float stepTime, int iterations){
         for(Object*& obj : objects){
 
             handleGravity(stepTime, obj, gravity);
-            handleCollisions(objects, obj, contactList, indicatorList);
 
         }
+
+        for(DistanceJoint* joint : distanceJoints){
+            distanceJointPreStep(*joint, stepTime);
+        }
+
+        potentialPairs.clear();
+        generatePotentialPairs(objects, potentialPairs);
+        handleCollisions(potentialPairs, contactList, manifoldCache);
 
         for(Manifold* contact : contactList){
 
             resolveCollisionWithRotation(*contact);
             positionalCorrection(*contact);
 
+        }
+
+        const int jointIterations = 5;
+        for(int i = 0; i < jointIterations; ++i){
+            for(DistanceJoint* joint : distanceJoints){
+                distanceJointApplyImpulse(*joint);
+            }
         }
 
         //cleaning
@@ -72,6 +119,7 @@ void World::update(float stepTime, int iterations){
 
             if(objects[i]->position.x < -50 || objects[i]->position.y > 900 || objects[i]->position.x > 1250){
 
+                removeJointsForObject(objects[i]);
                 delete objects[i];            
                 objects.erase(objects.begin() + i); 
 
@@ -84,6 +132,17 @@ void World::update(float stepTime, int iterations){
         }
 
         objects.erase(std::remove(objects.begin(), objects.end(), nullptr), objects.end());  
+        distanceJoints.erase(
+            std::remove_if(distanceJoints.begin(), distanceJoints.end(),
+                [](DistanceJoint* joint){
+                    if(!joint) return true;
+                    if(!joint->objA || !joint->objB){
+                        delete joint;
+                        return true;
+                    }
+                    return false;
+                }),
+            distanceJoints.end());
 
     }
         
@@ -110,5 +169,11 @@ const std::vector<Manifold*>& World::getContacts() const{
 const std::vector<Manifold*>& World::getIndicators() const{
 
     return indicatorList;
+
+}
+
+const std::vector<DistanceJoint*>& World::getDistanceJoints() const{
+
+    return distanceJoints;
 
 }

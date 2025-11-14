@@ -965,6 +965,9 @@ CMakeFiles/PhysicsEngine.dir/Codes/World.cpp.o: Codes/World.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
+  Codes/BroadPhase.hpp \
+  Codes/CollisionCache.hpp \
+  Codes/Joint.hpp \
   Codes/Manifold.hpp \
   Codes/Material.hpp \
   Codes/Object.hpp \
@@ -1871,6 +1874,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/main.cpp.o: Codes/main.cpp \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/format \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/functional \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/initializer_list \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/iomanip \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/ios \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/iosfwd \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/iostream \
@@ -1891,6 +1895,7 @@ CMakeFiles/PhysicsEngine.dir/Codes/main.cpp.o: Codes/main.cpp \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/queue \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/random \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/ratio \
+  /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/sstream \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/stack \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/stddef.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/stdexcept \
@@ -2064,6 +2069,9 @@ CMakeFiles/PhysicsEngine.dir/Codes/main.cpp.o: Codes/main.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
+  Codes/BroadPhase.hpp \
+  Codes/CollisionCache.hpp \
+  Codes/Joint.hpp \
   Codes/Manifold.hpp \
   Codes/Material.hpp \
   Codes/Object.hpp \
@@ -3118,6 +3126,9 @@ CMakeFiles/PhysicsEngine.dir/Codes/physics.cpp.o: Codes/physics.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
+  Codes/BroadPhase.hpp \
+  Codes/CollisionCache.hpp \
+  Codes/Joint.hpp \
   Codes/Manifold.hpp \
   Codes/Material.hpp \
   Codes/Object.hpp \
@@ -4168,6 +4179,9 @@ CMakeFiles/PhysicsEngine.dir/Codes/utility.cpp.o: Codes/utility.cpp \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdint.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/share/asan_ignorelist.txt \
   Codes/AABB.hpp \
+  Codes/BroadPhase.hpp \
+  Codes/CollisionCache.hpp \
+  Codes/Joint.hpp \
   Codes/Manifold.hpp \
   Codes/Material.hpp \
   Codes/Object.hpp \
@@ -4253,6 +4267,8 @@ CMakeFiles/PhysicsEngine.dir/Codes/utility.cpp.o: Codes/utility.cpp \
   /opt/homebrew/include/SFML/Window/WindowHandle.hpp \
   /opt/homebrew/include/SFML/Window/WindowStyle.hpp
 
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/iomanip:
 
 /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/__random/weibull_distribution.h:
 
@@ -4390,6 +4406,8 @@ CMakeFiles/PhysicsEngine.dir/Codes/utility.cpp.o: Codes/utility.cpp \
 
 /opt/homebrew/include/SFML/Config.hpp:
 
+/Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk/usr/include/c++/v1/sstream:
+
 Codes/utility.hpp:
 
 Codes/utility.cpp:
@@ -4403,6 +4421,12 @@ Codes/Transform.hpp:
 Codes/Object.hpp:
 
 Codes/Manifold.hpp:
+
+Codes/Joint.hpp:
+
+Codes/CollisionCache.hpp:
+
+Codes/BroadPhase.hpp:
 
 Codes/AABB.hpp:
 
