@@ -1,0 +1,3 @@
+[submodule "PhysicsEngineCore"]
+	path = PhysicsEngineCore
+	url = https://github.com/darklightning0/2D-Physics-Engine-.git
