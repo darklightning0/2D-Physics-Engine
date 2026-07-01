@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AntiGravity - Wasm Physics Sandbox</title>
+    <meta name="description" content="AntiGravity: A high-fidelity, continuous collision detection 2D physics engine running on WebAssembly with a premium HTML5 canvas sandbox UI.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- Fullscreen Canvas -->
+        <canvas id="physics-canvas"></canvas>
+
+        <!-- Floating Left Panel: World Infos & Controls -->
+        <aside id="panel-world" class="floating-panel">
+            <div class="panel-header">
+                <div>
+                    <h1>AntiGravity</h1>
+                    <p class="subtitle">Wasm Physics Sandbox</p>
+                </div>
+            </div>
+            
+            <div class="panel-scroll">
+                <!-- Section: Simulation Control -->
+                <section class="control-section">
+                    <h2>Simulation</h2>
+                    <div class="btn-group">
+                        <button id="btn-play" class="btn btn-primary">Pause</button>
+                        <button id="btn-step" class="btn">Step</button>
+                        <button id="btn-reset" class="btn btn-danger">Reset</button>
+                    </div>
+                    <div class="slider-group">
+                        <label>
+                            Speed Scale: <span id="val-time-scale">1.0x</span>
+                            <input type="range" id="slide-time-scale" min="0.1" max="2" step="0.1" value="1.0">
+                        </label>
+                        <label>
+                            Solver Steps: <span id="val-iterations">5</span>
+                            <input type="range" id="slide-iterations" min="1" max="15" step="1" value="5">
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Section: Environment / Gravity -->
+                <section class="control-section">
+                    <h2>Environment</h2>
+                    <div class="slider-group">
+                        <label>
+                            Gravity X: <span id="val-gravity-x">0.0 m/s²</span>
+                            <input type="range" id="slide-gravity-x" min="-20" max="20" step="0.5" value="0">
+                        </label>
+                        <label>
+                            Gravity Y: <span id="val-gravity-y">9.8 m/s²</span>
+                            <input type="range" id="slide-gravity-y" min="-30" max="30" step="0.5" value="9.8">
+                        </label>
+                    </div>
+                    <div class="toggle-group" style="margin-top: 12px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chk-grid" checked>
+                            <span class="slider"></span>
+                            Show Spatial Hash Grid
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Section: Predefined Scenes -->
+                <section class="control-section">
+                    <h2>Presets</h2>
+                    <div class="scene-list">
+                        <button id="scene-gears" class="btn-scene">Gears Mesh</button>
+                        <button id="scene-stack" class="btn-scene">Stacking Test</button>
+                        <button id="scene-washer" class="btn-scene">Washer Stack</button>
+                        <button id="scene-ccd" class="btn-scene">High-Speed CCD</button>
+                    </div>
+                </section>
+
+                <!-- Section: AI Prompter -->
+                <section class="control-section" style="margin-bottom: 0;">
+                    <h2>AI Natural Spawner</h2>
+                    <div class="ai-box">
+                        <textarea id="ai-prompt" placeholder="Try: 'stack 8 boxes' or 'spawn 16 teeth gear at speed 4'"></textarea>
+                        <button id="btn-ai-generate" class="btn btn-primary" style="width: 100%;">Orchestrate</button>
+                    </div>
+                </section>
+            </div>
+        </aside>
+        <button id="btn-world-toggle" class="panel-toggle-btn">&larr;</button>
+
+        <!-- Floating Right Panel: Selection / Joint Inspector -->
+        <aside id="panel-inspector" class="floating-panel collapsed">
+            <div class="panel-header">
+                <h3 id="inspector-title">Inspector</h3>
+                <button id="inspector-close" class="btn" style="padding: 2px 6px; font-size: 11px;">Clear</button>
+            </div>
+            
+            <div class="panel-scroll">
+                <!-- Object Properties Section -->
+                <div id="inspect-object-section">
+                    <div class="inspector-field">
+                        <span>Type:</span> <strong id="inspect-type">-</strong>
+                    </div>
+                    <div class="inspector-field">
+                        <span>Position:</span> <span id="inspect-pos">-</span>
+                    </div>
+                    <div class="inspector-field">
+                        <span>Velocity:</span> <span id="inspect-vel">-</span>
+                    </div>
+                    <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px;">
+                        <label style="margin: 0;">
+                            Mass (kg):
+                            <input type="number" id="inspect-mass" step="0.1">
+                        </label>
+                        <label style="margin: 0;">
+                            Restitution:
+                            <input type="number" id="inspect-restitution" min="0" max="1" step="0.05">
+                        </label>
+                        <label style="margin: 0;">
+                            Friction:
+                            <input type="number" id="inspect-friction" min="0" max="1" step="0.05">
+                        </label>
+                        <label style="margin: 0;">
+                            Angle (rad):
+                            <input type="number" id="inspect-angle" step="0.1">
+                        </label>
+                    </div>
+                    <!-- Dimensions -->
+                    <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px;">
+                        <label id="inspect-radius-lbl" style="margin: 0;">
+                            Radius (px):
+                            <input type="number" id="inspect-radius" step="1">
+                        </label>
+                        <label id="inspect-width-lbl" style="margin: 0;">
+                            Width (px):
+                            <input type="number" id="inspect-width" step="1">
+                        </label>
+                        <label id="inspect-height-lbl" style="margin: 0;">
+                            Height (px):
+                            <input type="number" id="inspect-height" step="1">
+                        </label>
+                    </div>
+                    <div class="toggle-group-compact" style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+                        <label class="toggle-switch" style="margin: 0;">
+                            <input type="checkbox" id="inspect-pinned">
+                            <span class="slider"></span>
+                            Pinned (Fixed Position)
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                            <input type="checkbox" id="inspect-static">
+                            <span class="slider"></span>
+                            Static (Infinite Mass)
+                        </label>
+                        <label class="toggle-switch" style="margin: 0;">
+                            <input type="checkbox" id="inspect-ccd">
+                            <span class="slider"></span>
+                            CCD (Fast Bullet)
+                        </label>
+                    </div>
+                    <!-- Gear Config -->
+                    <div id="inspect-gear-section" class="hidden">
+                        <hr style="margin: 12px 0; border: 0; height: 1px; background: rgba(255,255,255,0.08);">
+                        <div class="toggle-group-compact">
+                            <label class="toggle-switch" style="margin: 0;">
+                                <input type="checkbox" id="inspect-motor">
+                                <span class="slider"></span>
+                                Motor Enabled
+                            </label>
+                        </div>
+                        <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px;">
+                            <label style="margin: 0;">
+                                Motor Speed:
+                                <input type="number" id="inspect-motor-speed" step="0.5">
+                            </label>
+                            <label style="margin: 0;">
+                                Max Torque:
+                                <input type="number" id="inspect-motor-torque" step="1">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Joint Properties Section -->
+                <div id="inspect-joint-section" class="hidden">
+                    <div class="inspector-field">
+                        <span>Joint Type:</span> <strong id="inspect-joint-type">-</strong>
+                    </div>
+                    <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px;">
+                        <label style="margin: 0;">
+                            Rest Length:
+                            <input type="number" id="inspect-joint-rest" step="1">
+                        </label>
+                        <label id="inspect-joint-stiff-lbl" style="margin: 0;">
+                            Stiffness:
+                            <input type="number" id="inspect-joint-stiff" step="1">
+                        </label>
+                        <label id="inspect-joint-damp-lbl" style="margin: 0;">
+                            Damping:
+                            <input type="number" id="inspect-joint-damp" step="0.1">
+                        </label>
+                    </div>
+                    <div class="toggle-group-compact" style="margin-top: 12px;">
+                        <label class="toggle-switch" id="inspect-joint-belt-lbl" style="margin: 0;">
+                            <input type="checkbox" id="inspect-joint-isbelt">
+                            <span class="slider"></span>
+                            Belt / Chain Style
+                        </label>
+                    </div>
+                </div>
+
+                <hr style="margin: 18px 0; border: 0; height: 1px; background: rgba(255,255,255,0.08);">
+                <button id="btn-inspect-delete" class="btn btn-danger" style="width: 100%;">Delete Selection</button>
+            </div>
+        </aside>
+        <button id="btn-inspector-toggle" class="panel-toggle-btn collapsed">&rarr;</button>
+
+        <!-- Floating Bottom Panel: Spawnables & Customizer Drawer -->
+        <div id="panel-spawnables" class="floating-panel">
+            <div class="spawnables-bar">
+                <button id="btn-select-mode" class="btn active">Select</button>
+                <div class="divider"></div>
+                <button id="spawn-circle" class="btn">Circle</button>
+                <button id="spawn-rect" class="btn">Rectangle</button>
+                <button id="spawn-polygon" class="btn">Polygon</button>
+                <button id="spawn-gear" class="btn">Gear</button>
+                <div class="divider"></div>
+                <button id="btn-link-distance" class="btn">Distance Joint</button>
+                <button id="btn-link-spring" class="btn">Spring Joint</button>
+                <button id="btn-link-gear" class="btn">Gear Mesh</button>
+                <div class="divider"></div>
+                <button id="btn-toggle-settings" class="btn">Settings &uarr;</button>
+            </div>
+
+            <!-- Expandable Spawner Parameters Drawer -->
+            <div id="spawn-settings-drawer" class="drawer">
+                <div class="drawer-content">
+                    <div class="drawer-grid">
+                        <label style="margin: 0;">
+                            Mass (kg):
+                            <input type="number" id="spawn-mass" value="1.5" step="0.1">
+                        </label>
+                        <label style="margin: 0;">
+                            Restitution:
+                            <input type="number" id="spawn-restitution" min="0" max="1" step="0.05" value="0.2">
+                        </label>
+                        <label style="margin: 0;">
+                            Friction:
+                            <input type="number" id="spawn-friction" min="0" max="1" step="0.05" value="0.6">
+                        </label>
+                        <label style="margin: 0;">
+                            Color:
+                            <input type="color" id="spawn-color" value="#3b82f6" style="padding: 0; height: 32px; border: none; cursor: pointer;">
+                        </label>
+                        <label class="toggle-switch" style="margin: 0; align-self: center; grid-column: span 2;">
+                            <input type="checkbox" id="spawn-static">
+                            <span class="slider"></span>
+                            Static (Infinite Mass)
+                        </label>
+                    </div>
+
+                    <!-- Spawner Gear configs -->
+                    <div id="gear-parameters" class="hidden" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">
+                        <div class="drawer-grid">
+                            <label style="margin: 0;">
+                                Teeth Count:
+                                <input type="number" id="gear-teeth" value="16" min="8" max="64" step="1">
+                            </label>
+                            <label style="margin: 0;">
+                                Diametral Pitch:
+                                <input type="number" id="gear-pitch" value="0.15" step="0.01">
+                            </label>
+                            <label style="margin: 0;">
+                                Motor Speed:
+                                <input type="number" id="gear-motor-speed" value="2.0" step="0.5">
+                            </label>
+                            <label class="toggle-switch" style="margin: 0; align-self: center;">
+                                <input type="checkbox" id="gear-motor">
+                                <span class="slider"></span>
+                                Motor Drive
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Launcher Instructions HUD -->
+        <div id="launcher-hud" class="hud-box">
+            <span class="badge">CCD Ready</span> Right-click & drag to launch / slingshot.
+        </div>
+    </div>
+
+    <!-- Configure Emscripten Module hook before script load to prevent race condition -->
+    <script>
+        var Module = {
+            onRuntimeInitialized: function() {
+                if (window.initApp) {
+                    window.initApp();
+                } else {
+                    window.wasmReady = true;
+                }
+            }
+        };
+    </script>
+    <script src="physics.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
