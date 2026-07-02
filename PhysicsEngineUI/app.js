@@ -24,6 +24,8 @@ let linkStartObject = null;
 let isDraggingBody = false;
 let dragOffset = { x: 0, y: 0 };
 let wasStaticBeforeDrag = false;
+let wasPinnedBeforeDrag = false;
+let wasMotorEnabledBeforeDrag = false;
 
 // Right-click object fling variables
 let isSlingshotDraggingObj = false;
@@ -33,6 +35,7 @@ let slingshotCurrent = null;
 // Camera / Pan state
 let cameraX = 0;
 let cameraY = 0;
+let cameraZoom = 1.0;
 let isPanning = false;
 let panStartMouse = { x: 0, y: 0 };
 let panStartCamera = { x: 0, y: 0 };
@@ -47,7 +50,15 @@ const spawnerSettings = {
     gearTeeth: 16,
     gearPitch: 0.15,
     gearMotor: false,
-    gearMotorSpeed: 2.0
+    gearMotorSpeed: 2.0,
+    // Polygon parameters
+    polySides: 5,
+    // Joint parameters
+    jointFreq: 2.0,
+    jointDampRatio: 0.7,
+    jointStiffness: 30.0,
+    jointDamping: 1.5,
+    jointIsBelt: false
 };
 
 // Emscripten runtime initialization check/hook
@@ -94,6 +105,29 @@ function resizeCanvas() {
     canvas.height = canvas.parentElement.clientHeight;
 }
 
+function setDrawerState(expanded) {
+    const drawer = document.getElementById("spawnables-drawer");
+    const btnToggleMenu = document.getElementById("btn-spawnables-toggle");
+    const zoomControls = document.getElementById("zoom-controls");
+    if (drawer) {
+        if (expanded) {
+            drawer.classList.add("expanded");
+            drawer.classList.remove("collapsed");
+            if (btnToggleMenu) btnToggleMenu.classList.add("active");
+            if (zoomControls) zoomControls.classList.add("drawer-expanded");
+        } else {
+            drawer.classList.remove("expanded");
+            drawer.classList.add("collapsed");
+            if (btnToggleMenu) btnToggleMenu.classList.remove("active");
+            if (zoomControls) zoomControls.classList.remove("drawer-expanded");
+            
+            // Revert mode when drawer closes
+            interactionMode = "select";
+            document.querySelectorAll(".spawn-card").forEach(c => c.classList.remove("active"));
+        }
+    }
+}
+
 // ==========================================
 // Setup Input Listeners
 // ==========================================
@@ -115,14 +149,86 @@ function setupEventHandlers() {
         const collapsed = panelInspector.classList.toggle("collapsed");
         btnInspectorToggle.classList.toggle("collapsed", collapsed);
         btnInspectorToggle.innerHTML = collapsed ? "&larr;" : "&rarr;";
+        syncZoomControlsPosition();
     });
 
-    const btnToggleSettings = document.getElementById("btn-toggle-settings");
-    const drawer = document.getElementById("spawn-settings-drawer");
+    // Zoom Controls Overlay Listeners
+    const btnZoomIn = document.getElementById("btn-zoom-in");
+    const btnZoomOut = document.getElementById("btn-zoom-out");
+    const btnZoomReset = document.getElementById("btn-zoom-reset");
 
-    btnToggleSettings.addEventListener("click", () => {
-        const expanded = drawer.classList.toggle("expanded");
-        btnToggleSettings.innerHTML = expanded ? "Settings &darr;" : "Settings &uarr;";
+    const performButtonZoom = (zoomIn) => {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const oldZoom = cameraZoom;
+        const factor = 1.15;
+        if (zoomIn) {
+            cameraZoom = Math.min(5.0, cameraZoom * factor);
+        } else {
+            cameraZoom = Math.max(0.1, cameraZoom / factor);
+        }
+        const ratio = cameraZoom / oldZoom;
+        cameraX = cx - (cx - cameraX) * ratio;
+        cameraY = cy - (cy - cameraY) * ratio;
+        if (!isPlaying) render();
+    };
+
+    btnZoomIn.addEventListener("click", () => performButtonZoom(true));
+    btnZoomOut.addEventListener("click", () => performButtonZoom(false));
+    btnZoomReset.addEventListener("click", () => {
+        cameraZoom = 1.0;
+        cameraX = 0;
+        cameraY = 0;
+        if (!isPlaying) render();
+    });
+
+    // Mouse Wheel Zoom centered on cursor
+    canvas.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const oldZoom = cameraZoom;
+        const zoomFactor = 1.1;
+        if (e.deltaY < 0) {
+            cameraZoom = Math.min(5.0, cameraZoom * zoomFactor);
+        } else {
+            cameraZoom = Math.max(0.1, cameraZoom / zoomFactor);
+        }
+        const ratio = cameraZoom / oldZoom;
+        cameraX = mx - (mx - cameraX) * ratio;
+        cameraY = my - (my - cameraY) * ratio;
+        if (!isPlaying) render();
+    }, { passive: false });
+
+    const drawer = document.getElementById("spawnables-drawer");
+    const btnToggleMenu = document.getElementById("btn-spawnables-toggle");
+    const btnCloseMenu = document.getElementById("btn-spawn-menu-close");
+
+    if (btnToggleMenu) {
+        btnToggleMenu.addEventListener("click", () => {
+            if (drawer) {
+                const isExpanded = drawer.classList.contains("expanded");
+                setDrawerState(!isExpanded);
+            }
+        });
+    }
+
+    if (btnCloseMenu) {
+        btnCloseMenu.addEventListener("click", () => {
+            setDrawerState(false);
+        });
+    }
+
+    // Escape key shortcut to cancel spawn/link mode and collapse the drawer
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            interactionMode = "select";
+            linkStartObject = null;
+            document.querySelectorAll(".spawn-card").forEach(c => c.classList.remove("active"));
+            setDrawerState(false);
+            setStatus("Selection Mode (Escape)");
+        }
     });
 
     // Play/Pause
@@ -217,42 +323,132 @@ function setupEventHandlers() {
         spawnerSettings.gearMotorSpeed = parseFloat(e.target.value) || 2.0;
     });
 
-    // Mode switchers
-    const spawnerButtons = {
-        "btn-select-mode": "select",
-        "spawn-circle": "spawn-circle",
-        "spawn-rect": "spawn-rect",
-        "spawn-polygon": "spawn-poly",
-        "spawn-gear": "spawn-gear",
-        "btn-link-distance": "link-distance",
-        "btn-link-spring": "link-spring",
-        "btn-link-gear": "link-gear"
-    };
+    // Polygon inputs
+    document.getElementById("spawn-poly-sides").addEventListener("change", (e) => {
+        spawnerSettings.polySides = Math.max(3, Math.min(12, parseInt(e.target.value) || 5));
+    });
 
-    Object.entries(spawnerButtons).forEach(([btnId, mode]) => {
-        const btn = document.getElementById(btnId);
-        if (!btn) return;
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".spawnables-bar .btn").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
+    // Joint parameters inputs
+    document.getElementById("spawn-joint-freq").addEventListener("change", (e) => {
+        spawnerSettings.jointFreq = Math.max(0.0, parseFloat(e.target.value) || 2.0);
+    });
+    document.getElementById("spawn-joint-damp-ratio").addEventListener("change", (e) => {
+        spawnerSettings.jointDampRatio = Math.max(0.0, parseFloat(e.target.value) || 0.7);
+    });
+    document.getElementById("spawn-joint-stiff").addEventListener("change", (e) => {
+        spawnerSettings.jointStiffness = Math.max(0.0, parseFloat(e.target.value) || 30.0);
+    });
+    document.getElementById("spawn-joint-damp").addEventListener("change", (e) => {
+        spawnerSettings.jointDamping = Math.max(0.0, parseFloat(e.target.value) || 1.5);
+    });
+    document.getElementById("spawn-joint-isbelt").addEventListener("change", (e) => {
+        spawnerSettings.jointIsBelt = e.target.checked;
+    });
+
+    // Category Tabs Switching
+    const categoryTabs = document.querySelectorAll(".category-tab");
+    categoryTabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            categoryTabs.forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            
+            document.querySelectorAll(".spawn-category-group").forEach(group => {
+                group.classList.add("hidden");
+            });
+            
+            const cat = tab.getAttribute("data-category");
+            const targetGroup = document.getElementById(`group-${cat}`);
+            if (targetGroup) {
+                targetGroup.classList.remove("hidden");
+            }
+        });
+    });
+
+    // Card Selection and Settings Updating
+    const spawnCards = document.querySelectorAll(".spawn-card");
+    const shapePane = document.getElementById("pane-shape-settings");
+    const gearPane = document.getElementById("pane-gear-settings");
+    const jointPane = document.getElementById("pane-joint-settings");
+    const settingsTitle = document.getElementById("spawn-settings-title");
+
+    function updateSpawnerSettingsPane(mode, name) {
+        settingsTitle.textContent = `${name} Settings`;
+        
+        shapePane.classList.add("hidden");
+        gearPane.classList.add("hidden");
+        jointPane.classList.add("hidden");
+        
+        const polyOnly = document.getElementById("poly-only-settings");
+        if (polyOnly) {
+            if (mode === "spawn-poly") {
+                polyOnly.classList.remove("hidden");
+            } else {
+                polyOnly.classList.add("hidden");
+            }
+        }
+        
+        if (mode.startsWith("spawn-")) {
+            if (mode === "spawn-gear") {
+                shapePane.classList.remove("hidden");
+                gearPane.classList.remove("hidden");
+            } else {
+                shapePane.classList.remove("hidden");
+            }
+        } else if (mode.startsWith("link-")) {
+            jointPane.classList.remove("hidden");
+            
+            document.getElementById("joint-distance-params").classList.add("hidden");
+            document.getElementById("joint-spring-params").classList.add("hidden");
+            document.getElementById("joint-gear-params").classList.add("hidden");
+            
+            if (mode === "link-distance") {
+                document.getElementById("joint-distance-params").classList.remove("hidden");
+            } else if (mode === "link-spring") {
+                document.getElementById("joint-spring-params").classList.remove("hidden");
+            } else if (mode === "link-gear") {
+                document.getElementById("joint-gear-params").classList.remove("hidden");
+            }
+        }
+    }
+
+    spawnCards.forEach(card => {
+        card.addEventListener("click", () => {
+            const mode = card.getAttribute("data-mode");
+            
+            // Toggle off if already active: switches to selection mode and closes drawer
+            if (card.classList.contains("active")) {
+                card.classList.remove("active");
+                interactionMode = "select";
+                linkStartObject = null;
+                setStatus("Selection Mode");
+                setDrawerState(false);
+                return;
+            }
+
+            spawnCards.forEach(c => c.classList.remove("active"));
+            card.classList.add("active");
+            
             interactionMode = mode;
             linkStartObject = null;
-            
-            if (mode === "select") {
-                setStatus("Selection Mode");
-            } else {
-                setStatus(`Mode: ${mode.replace("-", " ").toUpperCase()}`);
-                // Automatically open drawer to allow spawn settings modifications
-                drawer.classList.add("expanded");
-                btnToggleSettings.innerHTML = "Settings &darr;";
-            }
 
-            const gearCard = document.getElementById("gear-parameters");
-            if (interactionMode === "spawn-gear") {
-                gearCard.classList.remove("hidden");
-            } else {
-                gearCard.classList.add("hidden");
+            // Set shape-specific realistic default friction
+            let defaultFriction = 0.5;
+            if (mode === "spawn-circle") {
+                defaultFriction = 0.15;
+            } else if (mode === "spawn-gear") {
+                defaultFriction = 0.3;
+            } else if (mode === "spawn-rect" || mode === "spawn-poly") {
+                defaultFriction = 0.5;
             }
+            spawnerSettings.friction = defaultFriction;
+            const frictionInput = document.getElementById("spawn-friction");
+            if (frictionInput) {
+                frictionInput.value = defaultFriction;
+            }
+            
+            const name = card.querySelector("span").textContent;
+            updateSpawnerSettingsPane(mode, name);
+            setStatus(`Mode: SPAWN ${name.toUpperCase()}`);
         });
     });
 
@@ -277,7 +473,17 @@ function setupEventHandlers() {
             updateInspectorHUD();
             setStatus("Object deleted");
         } else if (selectedJoint) {
-            setStatus("Joint deletion requires deleting one of its anchored bodies.");
+            if (selectedJointType === 'distance') {
+                world.removeDistanceJoint(selectedJoint);
+            } else if (selectedJointType === 'spring') {
+                world.removeSpringJoint(selectedJoint);
+            } else if (selectedJointType === 'gear') {
+                world.removeGearJoint(selectedJoint);
+            }
+            selectedJoint = null;
+            selectedJointType = "";
+            updateInspectorHUD();
+            setStatus("Joint deleted");
         }
     });
 
@@ -288,44 +494,87 @@ function setupEventHandlers() {
             selectedObj.updateDerivedProperties();
         }
     });
+    document.getElementById("inspect-material").addEventListener("change", (e) => {
+        if (selectedObj) {
+            selectedObj.material = parseInt(e.target.value);
+            const presetsRest = [0.5, 0.35, 0.6, 0.85, 0.25, 0.15];
+            selectedObj.restitution = presetsRest[selectedObj.material];
+            selectedObj.updateDerivedProperties();
+            updateInspectorHUD();
+        }
+    });
     document.getElementById("inspect-restitution").addEventListener("change", (e) => {
         if (selectedObj) {
             selectedObj.restitution = parseFloat(e.target.value);
         }
     });
+    document.getElementById("inspect-compression").addEventListener("change", (e) => {
+        if (selectedObj) {
+            selectedObj.compression = parseFloat(e.target.value) || 0.0;
+        }
+    });
     document.getElementById("inspect-friction").addEventListener("change", (e) => {
         if (selectedObj) {
             selectedObj.friction = parseFloat(e.target.value);
+            document.getElementById("inspect-friction-auto").checked = (selectedObj.friction < 0);
+        }
+    });
+    document.getElementById("inspect-friction-auto").addEventListener("change", (e) => {
+        if (selectedObj) {
+            if (e.target.checked) {
+                selectedObj.friction = -1.0;
+                document.getElementById("inspect-friction").value = "";
+                document.getElementById("inspect-friction").disabled = true;
+            } else {
+                selectedObj.friction = 0.5;
+                document.getElementById("inspect-friction").value = "0.50";
+                document.getElementById("inspect-friction").disabled = false;
+            }
         }
     });
     document.getElementById("inspect-angle").addEventListener("change", (e) => {
         if (selectedObj) {
-            selectedObj.angle = parseFloat(e.target.value);
+            const deg = parseFloat(e.target.value) || 0.0;
+            selectedObj.angle = (deg * Math.PI) / 180.0;
             selectedObj.transformUpdateRequired = true;
             selectedObj.aabbUpdateRequired = true;
         }
     });
     document.getElementById("inspect-radius").addEventListener("change", (e) => {
         if (selectedObj && selectedObj.type === 0) {
-            selectedObj.radius = Math.max(1, parseFloat(e.target.value) || 10);
+            const val = parseFloat(e.target.value) || 0.5;
+            selectedObj.radius = Math.max(0.1, val) * PIXELS_PER_METER;
             selectedObj.updateDerivedProperties();
         }
     });
     document.getElementById("inspect-width").addEventListener("change", (e) => {
         if (selectedObj && selectedObj.type === 1) {
-            selectedObj.width = Math.max(1, parseFloat(e.target.value) || 10);
-            selectedObj.updateDerivedProperties();
+            const val = parseFloat(e.target.value) || 0.5;
+            const newW = Math.max(0.1, val) * PIXELS_PER_METER;
+            selectedObj.setBoxDimensions(newW, selectedObj.height);
         }
     });
     document.getElementById("inspect-height").addEventListener("change", (e) => {
         if (selectedObj && selectedObj.type === 1) {
-            selectedObj.height = Math.max(1, parseFloat(e.target.value) || 10);
-            selectedObj.updateDerivedProperties();
+            const val = parseFloat(e.target.value) || 0.5;
+            const newH = Math.max(0.1, val) * PIXELS_PER_METER;
+            selectedObj.setBoxDimensions(selectedObj.width, newH);
+        }
+    });
+    document.getElementById("inspect-linear-drag").addEventListener("change", (e) => {
+        if (selectedObj) {
+            selectedObj.linearDrag = Math.max(0.0, parseFloat(e.target.value) || 0.0);
+        }
+    });
+    document.getElementById("inspect-angular-drag").addEventListener("change", (e) => {
+        if (selectedObj) {
+            selectedObj.angularDrag = Math.max(0.0, parseFloat(e.target.value) || 0.0);
         }
     });
     document.getElementById("inspect-pinned").addEventListener("change", (e) => {
         if (selectedObj) {
             selectedObj.isPinned = e.target.checked;
+            selectedObj.updateDerivedProperties();
         }
     });
     document.getElementById("inspect-static").addEventListener("change", (e) => {
@@ -337,6 +586,21 @@ function setupEventHandlers() {
     document.getElementById("inspect-ccd").addEventListener("change", (e) => {
         if (selectedObj) {
             selectedObj.ccdEnabled = e.target.checked;
+            selectedObj.updateDerivedProperties();
+        }
+    });
+    document.getElementById("inspect-gear-teeth").addEventListener("change", (e) => {
+        if (selectedObj && selectedObj.isGear) {
+            selectedObj.teethCount = Math.max(3, parseInt(e.target.value) || 16);
+            selectedObj.updateDerivedProperties();
+            updateInspectorHUD();
+        }
+    });
+    document.getElementById("inspect-gear-pitch").addEventListener("change", (e) => {
+        if (selectedObj && selectedObj.isGear) {
+            selectedObj.diametralPitch = Math.max(0.01, parseFloat(e.target.value) || 0.15);
+            selectedObj.updateDerivedProperties();
+            updateInspectorHUD();
         }
     });
     document.getElementById("inspect-motor").addEventListener("change", (e) => {
@@ -349,16 +613,31 @@ function setupEventHandlers() {
             selectedObj.motorSpeed = parseFloat(e.target.value) || 0.0;
         }
     });
+    document.getElementById("btn-inspect-motor-inv").addEventListener("click", () => {
+        if (selectedObj) {
+            selectedObj.motorSpeed = -selectedObj.motorSpeed;
+            document.getElementById("inspect-motor-speed").value = selectedObj.motorSpeed.toFixed(2);
+        }
+    });
     document.getElementById("inspect-motor-torque").addEventListener("change", (e) => {
         if (selectedObj) {
             selectedObj.motorMaxTorque = parseFloat(e.target.value) || 0.0;
         }
     });
+    document.querySelectorAll(".color-swatch").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            if (selectedObj) {
+                const colorHex = e.target.getAttribute("data-color");
+                const coreCol = hexToCoreColor(colorHex);
+                selectedObj.color = coreCol;
+            }
+        });
+    });
 
     // Modify selected parameters live (Joint)
     document.getElementById("inspect-joint-rest").addEventListener("change", (e) => {
         if (selectedJoint) {
-            selectedJoint.restLength = parseFloat(e.target.value) || 0;
+            selectedJoint.restLength = (parseFloat(e.target.value) || 0) * PIXELS_PER_METER;
         }
     });
     document.getElementById("inspect-joint-stiff").addEventListener("change", (e) => {
@@ -371,9 +650,20 @@ function setupEventHandlers() {
             selectedJoint.damping = parseFloat(e.target.value) || 0;
         }
     });
+    document.getElementById("inspect-joint-freq").addEventListener("change", (e) => {
+        if (selectedJoint && selectedJointType === 'distance') {
+            selectedJoint.frequencyHz = Math.max(0.0, parseFloat(e.target.value) || 0.0);
+        }
+    });
+    document.getElementById("inspect-joint-damp-ratio").addEventListener("change", (e) => {
+        if (selectedJoint && selectedJointType === 'distance') {
+            selectedJoint.dampingRatio = Math.max(0.0, parseFloat(e.target.value) || 0.0);
+        }
+    });
     document.getElementById("inspect-joint-isbelt").addEventListener("change", (e) => {
         if (selectedJoint && selectedJointType === 'gear') {
             selectedJoint.isBelt = e.target.checked;
+            updateInspectorHUD();
         }
     });
 
@@ -512,10 +802,10 @@ function loadCCDScene() {
 // ==========================================
 function getMousePos(e) {
     const rect = canvas.getBoundingClientRect();
-    // Convert screen-space mouse position to world-space by subtracting camera offset
+    // Convert screen-space mouse position to world-space by subtracting camera offset and dividing by zoom factor
     return {
-        x: e.clientX - rect.left - cameraX,
-        y: e.clientY - rect.top - cameraY
+        x: (e.clientX - rect.left - cameraX) / cameraZoom,
+        y: (e.clientY - rect.top - cameraY) / cameraZoom
     };
 }
 
@@ -637,6 +927,20 @@ function handleCanvasMouseDown(e) {
                 y: pos.y - hit.position.y
             };
             wasStaticBeforeDrag = hit.isStatic;
+            wasPinnedBeforeDrag = hit.isPinned;
+            wasMotorEnabledBeforeDrag = hit.motorEnabled;
+            
+            // Apply temporary drag properties
+            if (hit.isGear) {
+                hit.isPinned = true;
+                hit.isStatic = false;
+            } else {
+                hit.isStatic = true;
+                hit.isPinned = false;
+                if (wasMotorEnabledBeforeDrag) {
+                    hit.motorEnabled = false;
+                }
+            }
             updateInspectorHUD();
         } else {
             const jointData = getJointAt(pos);
@@ -673,15 +977,15 @@ function handleCanvasMouseDown(e) {
 
             if (interactionMode === "link-distance") {
                 const len = Math.hypot(linkStartObject.position.x - obj.position.x, linkStartObject.position.y - obj.position.y);
-                world.createDistanceJoint(linkStartObject, obj, new Module.Vector(0, 0), new Module.Vector(0, 0), len, 2.0, 0.7);
+                world.createDistanceJoint(linkStartObject, obj, new Module.Vector(0, 0), new Module.Vector(0, 0), len, spawnerSettings.jointFreq, spawnerSettings.jointDampRatio);
                 setStatus("Distance Joint linked");
             } else if (interactionMode === "link-spring") {
                 const len = Math.hypot(linkStartObject.position.x - obj.position.x, linkStartObject.position.y - obj.position.y);
-                world.createSpringJoint(linkStartObject, obj, new Module.Vector(0, 0), new Module.Vector(0, 0), len, 30.0, 1.5);
+                world.createSpringJoint(linkStartObject, obj, new Module.Vector(0, 0), new Module.Vector(0, 0), len, spawnerSettings.jointStiffness, spawnerSettings.jointDamping);
                 setStatus("Spring Joint linked");
             } else if (interactionMode === "link-gear") {
                 if (linkStartObject.isGear && obj.isGear) {
-                    world.createGearJoint(linkStartObject, obj, false);
+                    world.createGearJoint(linkStartObject, obj, spawnerSettings.jointIsBelt);
                     setStatus("Gear connection linked");
                 } else {
                     setStatus("Error: Mesh gears requires both objects to be Gears.");
@@ -690,8 +994,8 @@ function handleCanvasMouseDown(e) {
 
             linkStartObject = null;
             interactionMode = "select";
-            document.querySelectorAll(".spawnables-bar .btn").forEach(b => b.classList.remove("active"));
-            document.getElementById("btn-select-mode").classList.add("active");
+            document.querySelectorAll(".spawn-card").forEach(c => c.classList.remove("active"));
+            setDrawerState(false);
         }
         return;
     }
@@ -709,8 +1013,9 @@ function handleCanvasMouseDown(e) {
     } else if (interactionMode === "spawn-poly") {
         const r = 40;
         const verts = new Module.Vector2DList();
-        for (let i = 0; i < 5; ++i) {
-            const angle = (i * 2 * Math.PI) / 5;
+        const sides = spawnerSettings.polySides;
+        for (let i = 0; i < sides; ++i) {
+            const angle = (i * 2 * Math.PI) / sides;
             verts.push_back(new Module.Vector(r * Math.cos(angle), r * Math.sin(angle)));
         }
         newObj = world.createPolygon(verts, new Module.Vector(pos.x, pos.y), new Module.Vector(0, 0), 0, 0, spawnerSettings.mass, spawnerSettings.restitution, color, spawnerSettings.isStatic);
@@ -723,10 +1028,11 @@ function handleCanvasMouseDown(e) {
         newObj.diametralPitch = spawnerSettings.gearPitch;
         newObj.friction = spawnerSettings.friction;
         
+        newObj.isPinned = true;
+        newObj.updateDerivedProperties();
         if (spawnerSettings.gearMotor) {
             newObj.motorEnabled = true;
             newObj.motorSpeed = spawnerSettings.gearMotorSpeed;
-            newObj.isPinned = true;
         }
     }
 
@@ -782,8 +1088,13 @@ function handleCanvasMouseUp(e) {
             isDraggingBody = false;
             if (selectedObj) {
                 selectedObj.isStatic = wasStaticBeforeDrag;
+                selectedObj.isPinned = wasPinnedBeforeDrag;
+                if (!selectedObj.isGear && wasMotorEnabledBeforeDrag) {
+                    selectedObj.motorEnabled = true;
+                }
                 selectedObj.updateDerivedProperties();
             }
+            updateInspectorHUD();
         }
     }
 
@@ -815,12 +1126,14 @@ function updateInspectorHUD() {
         panel.classList.add("collapsed");
         btn.classList.add("collapsed");
         btn.innerHTML = "&larr;";
+        syncZoomControlsPosition();
         return;
     }
 
     panel.classList.remove("collapsed");
     btn.classList.remove("collapsed");
     btn.innerHTML = "&rarr;";
+    syncZoomControlsPosition();
     
     const objSection = document.getElementById("inspect-object-section");
     const jointSection = document.getElementById("inspect-joint-section");
@@ -831,13 +1144,32 @@ function updateInspectorHUD() {
         document.getElementById("inspector-title").textContent = "Object Inspector";
         
         document.getElementById("inspect-type").textContent = selectedObj.isGear ? "Gear" : (selectedObj.type === 0 ? "Circle" : "Polygon");
-        document.getElementById("inspect-pos").textContent = `(${Math.round(selectedObj.position.x)}, ${Math.round(selectedObj.position.y)})`;
-        document.getElementById("inspect-vel").textContent = `(${Math.round(selectedObj.linearVelocity.x)}, ${Math.round(selectedObj.linearVelocity.y)})`;
+        
+        const posM = { x: selectedObj.position.x / PIXELS_PER_METER, y: selectedObj.position.y / PIXELS_PER_METER };
+        const velM = { x: selectedObj.linearVelocity.x / PIXELS_PER_METER, y: selectedObj.linearVelocity.y / PIXELS_PER_METER };
+        document.getElementById("inspect-pos").textContent = `(${posM.x.toFixed(2)}, ${posM.y.toFixed(2)}) m`;
+        document.getElementById("inspect-vel").textContent = `(${velM.x.toFixed(2)}, ${velM.y.toFixed(2)}) m/s`;
+        document.getElementById("inspect-angvel").textContent = selectedObj.angularVelocity.toFixed(2);
         
         document.getElementById("inspect-mass").value = selectedObj.mass.toFixed(2);
+        document.getElementById("inspect-material").value = selectedObj.material;
         document.getElementById("inspect-restitution").value = selectedObj.restitution.toFixed(2);
-        document.getElementById("inspect-friction").value = selectedObj.friction.toFixed(2);
-        document.getElementById("inspect-angle").value = selectedObj.angle.toFixed(2);
+        document.getElementById("inspect-compression").value = selectedObj.compression.toFixed(2);
+        
+        if (selectedObj.friction < 0) {
+            document.getElementById("inspect-friction-auto").checked = true;
+            document.getElementById("inspect-friction").value = "";
+            document.getElementById("inspect-friction").disabled = true;
+        } else {
+            document.getElementById("inspect-friction-auto").checked = false;
+            document.getElementById("inspect-friction").value = selectedObj.friction.toFixed(2);
+            document.getElementById("inspect-friction").disabled = false;
+        }
+        
+        document.getElementById("inspect-angle").value = Math.round(selectedObj.angle * 180.0 / Math.PI);
+        document.getElementById("inspect-linear-drag").value = selectedObj.linearDrag.toFixed(2);
+        document.getElementById("inspect-angular-drag").value = selectedObj.angularDrag.toFixed(2);
+        
         document.getElementById("inspect-pinned").checked = selectedObj.isPinned;
         document.getElementById("inspect-static").checked = selectedObj.isStatic;
         document.getElementById("inspect-ccd").checked = selectedObj.ccdEnabled;
@@ -850,51 +1182,91 @@ function updateInspectorHUD() {
             radiusLbl.classList.remove("hidden");
             widthLbl.classList.add("hidden");
             heightLbl.classList.add("hidden");
-            document.getElementById("inspect-radius").value = Math.round(selectedObj.radius);
+            document.getElementById("inspect-radius").value = (selectedObj.radius / PIXELS_PER_METER).toFixed(2);
         } else { // Box / Polygon
             radiusLbl.classList.add("hidden");
             widthLbl.classList.remove("hidden");
             heightLbl.classList.remove("hidden");
-            document.getElementById("inspect-width").value = Math.round(selectedObj.width);
-            document.getElementById("inspect-height").value = Math.round(selectedObj.height);
+            document.getElementById("inspect-width").value = (selectedObj.width / PIXELS_PER_METER).toFixed(2);
+            document.getElementById("inspect-height").value = (selectedObj.height / PIXELS_PER_METER).toFixed(2);
         }
         
-        const gearSect = document.getElementById("inspect-gear-section");
+        const gearGeomSect = document.getElementById("inspect-gear-geom-section");
+        const motorSect = document.getElementById("inspect-motor-section");
         if (selectedObj.isGear) {
-            gearSect.classList.remove("hidden");
-            document.getElementById("inspect-motor").checked = selectedObj.motorEnabled;
-            document.getElementById("inspect-motor-speed").value = selectedObj.motorSpeed.toFixed(2);
-            document.getElementById("inspect-motor-torque").value = Math.round(selectedObj.motorMaxTorque);
+            gearGeomSect.classList.remove("hidden");
+            document.getElementById("inspect-gear-teeth").value = selectedObj.teethCount;
+            document.getElementById("inspect-gear-pitch").value = selectedObj.diametralPitch.toFixed(2);
+            
+            const pd = selectedObj.teethCount / selectedObj.diametralPitch;
+            document.getElementById("inspect-gear-pitch-diam").textContent = (pd / PIXELS_PER_METER).toFixed(2);
         } else {
-            gearSect.classList.add("hidden");
+            gearGeomSect.classList.add("hidden");
         }
+        
+        // Show motor controls for all shapes
+        motorSect.classList.remove("hidden");
+        document.getElementById("inspect-motor").checked = selectedObj.motorEnabled;
+        document.getElementById("inspect-motor-speed").value = selectedObj.motorSpeed.toFixed(2);
+        document.getElementById("inspect-motor-torque").value = Math.round(selectedObj.motorMaxTorque);
     } else if (selectedJoint) {
         objSection.classList.add("hidden");
         jointSection.classList.remove("hidden");
         document.getElementById("inspector-title").textContent = "Joint Inspector";
         
         document.getElementById("inspect-joint-type").textContent = selectedJointType.toUpperCase() + " Joint";
-        document.getElementById("inspect-joint-rest").value = Math.round(selectedJoint.restLength || 0);
         
+        const restLbl = document.getElementById("inspect-joint-rest-lbl");
         const stiffLbl = document.getElementById("inspect-joint-stiff-lbl");
         const dampLbl = document.getElementById("inspect-joint-damp-lbl");
+        const freqLbl = document.getElementById("inspect-joint-freq-lbl");
+        const dampRatioLbl = document.getElementById("inspect-joint-damp-ratio-lbl");
         const beltLbl = document.getElementById("inspect-joint-belt-lbl");
+        const details = document.getElementById("inspect-joint-gear-details");
         
         if (selectedJointType === 'distance') {
+            restLbl.classList.remove("hidden");
+            document.getElementById("inspect-joint-rest").value = ((selectedJoint.restLength || 0) / PIXELS_PER_METER).toFixed(2);
+            
             stiffLbl.classList.add("hidden");
             dampLbl.classList.add("hidden");
+            freqLbl.classList.remove("hidden");
+            dampRatioLbl.classList.remove("hidden");
             beltLbl.classList.add("hidden");
+            details.classList.add("hidden");
+            
+            document.getElementById("inspect-joint-freq").value = selectedJoint.frequencyHz.toFixed(2);
+            document.getElementById("inspect-joint-damp-ratio").value = selectedJoint.dampingRatio.toFixed(2);
         } else if (selectedJointType === 'spring') {
+            restLbl.classList.remove("hidden");
+            document.getElementById("inspect-joint-rest").value = ((selectedJoint.restLength || 0) / PIXELS_PER_METER).toFixed(2);
+            
             stiffLbl.classList.remove("hidden");
             dampLbl.classList.remove("hidden");
+            freqLbl.classList.add("hidden");
+            dampRatioLbl.classList.add("hidden");
             beltLbl.classList.add("hidden");
+            details.classList.add("hidden");
+            
             document.getElementById("inspect-joint-stiff").value = Math.round(selectedJoint.stiffness);
             document.getElementById("inspect-joint-damp").value = selectedJoint.damping.toFixed(2);
         } else if (selectedJointType === 'gear') {
+            restLbl.classList.add("hidden");
             stiffLbl.classList.add("hidden");
             dampLbl.classList.add("hidden");
+            freqLbl.classList.add("hidden");
+            dampRatioLbl.classList.add("hidden");
+            
             beltLbl.classList.remove("hidden");
             document.getElementById("inspect-joint-isbelt").checked = selectedJoint.isBelt;
+            
+            details.classList.remove("hidden");
+            document.getElementById("inspect-joint-gear-a").textContent = `${selectedJoint.objA.teethCount} teeth`;
+            document.getElementById("inspect-joint-gear-b").textContent = `${selectedJoint.objB.teethCount} teeth`;
+            
+            const calcRatio = selectedJoint.objB.teethCount > 0 ? (selectedJoint.objA.teethCount / selectedJoint.objB.teethCount) : 0.0;
+            document.getElementById("inspect-joint-gear-ratio").textContent = calcRatio.toFixed(2);
+            document.getElementById("inspect-joint-gear-state").textContent = selectedJoint.enabled ? "Engaged (Sync)" : "Disengaged (No touch)";
         }
     }
 }
@@ -1018,19 +1390,38 @@ function loop(timestamp) {
     if (isPlaying && world) {
         accumulator += elapsed * timeScale;
         while (accumulator >= targetDt) {
-            // Drag logic: temporarily lock dynamic bodies to static
+            // Drag logic: temporarily lock dynamic bodies
             let wasStatic = false;
+            let wasPinned = false;
+            let wasMotor = false;
             if (isDraggingBody && selectedObj) {
                 wasStatic = wasStaticBeforeDrag;
-                selectedObj.isStatic = true;
+                wasPinned = wasPinnedBeforeDrag;
+                wasMotor = wasMotorEnabledBeforeDrag;
+                
+                if (selectedObj.isGear) {
+                    selectedObj.isPinned = true;
+                    selectedObj.isStatic = false;
+                } else {
+                    selectedObj.isStatic = true;
+                    selectedObj.isPinned = false;
+                    selectedObj.motorEnabled = false;
+                }
+                
                 selectedObj.linearVelocity = new Module.Vector(0, 0);
-                selectedObj.angularVelocity = 0.0;
+                if (!selectedObj.isGear) {
+                    selectedObj.angularVelocity = 0.0;
+                }
             }
 
             world.update(targetDt, solverIterations);
 
             if (isDraggingBody && selectedObj) {
                 selectedObj.isStatic = wasStatic;
+                selectedObj.isPinned = wasPinned;
+                if (!selectedObj.isGear) {
+                    selectedObj.motorEnabled = wasMotor;
+                }
             }
 
             accumulator -= targetDt;
@@ -1055,6 +1446,7 @@ function render() {
     // Apply camera transform for all world-space drawing
     ctx.save();
     ctx.translate(cameraX, cameraY);
+    ctx.scale(cameraZoom, cameraZoom);
 
     // Draw Joint Links
     drawJoints();
@@ -1155,7 +1547,7 @@ function drawGearTeeth(obj) {
     const teeth = obj.teethCount;
     const center = obj.position;
     const r = obj.radius;
-    const toothHeight = 8;
+    const toothHeight = Math.max(4, r * 0.15);
     const angleStep = (2 * Math.PI) / teeth;
 
     ctx.fillStyle = ctx.strokeStyle;
@@ -1165,17 +1557,17 @@ function drawGearTeeth(obj) {
         const theta = obj.angle + i * angleStep;
         
         // 4 points of trapezoid tooth
-        const p1_x = center.x + (r - 2) * Math.cos(theta - angleStep * 0.25);
-        const p1_y = center.y + (r - 2) * Math.sin(theta - angleStep * 0.25);
+        const p1_x = center.x + (r - 1) * Math.cos(theta - angleStep * 0.25);
+        const p1_y = center.y + (r - 1) * Math.sin(theta - angleStep * 0.25);
         
-        const p2_x = center.x + (r + toothHeight) * Math.cos(theta - angleStep * 0.15);
-        const p2_y = center.y + (r + toothHeight) * Math.sin(theta - angleStep * 0.15);
+        const p2_x = center.x + (r + toothHeight) * Math.cos(theta - angleStep * 0.12);
+        const p2_y = center.y + (r + toothHeight) * Math.sin(theta - angleStep * 0.12);
         
-        const p3_x = center.x + (r + toothHeight) * Math.cos(theta + angleStep * 0.15);
-        const p3_y = center.y + (r + toothHeight) * Math.sin(theta + angleStep * 0.15);
+        const p3_x = center.x + (r + toothHeight) * Math.cos(theta + angleStep * 0.12);
+        const p3_y = center.y + (r + toothHeight) * Math.sin(theta + angleStep * 0.12);
         
-        const p4_x = center.x + (r - 2) * Math.cos(theta + angleStep * 0.25);
-        const p4_y = center.y + (r - 2) * Math.sin(theta + angleStep * 0.25);
+        const p4_x = center.x + (r - 1) * Math.cos(theta + angleStep * 0.25);
+        const p4_y = center.y + (r - 1) * Math.sin(theta + angleStep * 0.25);
 
         ctx.moveTo(p1_x, p1_y);
         ctx.lineTo(p2_x, p2_y);
@@ -1183,6 +1575,38 @@ function drawGearTeeth(obj) {
         ctx.lineTo(p4_x, p4_y);
     }
     ctx.fill();
+
+    // Realistic gear styling: Inner rim
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, r * 0.8, 0, 2 * Math.PI);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Spokes/cutouts for larger gears
+    if (r >= 15) {
+        const numSpokes = 5;
+        const cutoutRadius = r * 0.25;
+        const cutoutDist = r * 0.45;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+        for (let i = 0; i < numSpokes; i++) {
+            const angle = obj.angle + (i * 2 * Math.PI / numSpokes);
+            ctx.beginPath();
+            ctx.arc(
+                center.x + cutoutDist * Math.cos(angle),
+                center.y + cutoutDist * Math.sin(angle),
+                cutoutRadius, 0, 2 * Math.PI
+            );
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+
+    // Center axle hub
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, Math.max(3, r * 0.15), 0, 2 * Math.PI);
+    ctx.fillStyle = "#0d0e12"; // Background hole color
+    ctx.fill();
+    ctx.stroke();
 }
 
 function drawJoints() {
@@ -1284,53 +1708,36 @@ function drawBelttangents(gear, isSelected) {
     const pL_bot = { x: pL.x - px * rL, y: pL.y - py * rL };
     const pR_bot = { x: pR.x - px * rR, y: pR.y - py * rR };
 
-    ctx.lineWidth = isSelected ? 2.5 : 1.8;
-    ctx.strokeStyle = isSelected ? "rgba(255, 255, 255, 0.95)" : "rgba(249, 115, 22, 0.6)";
-
-    ctx.beginPath();
-    ctx.moveTo(pL_top.x, pL_top.y);
-    ctx.lineTo(pR_top.x, pR_top.y);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(pL_bot.x, pL_bot.y);
-    ctx.lineTo(pR_bot.x, pR_bot.y);
-    ctx.stroke();
-
-    ctx.beginPath();
-    const startAngleL = Math.atan2(-py, -px);
-    const endAngleL = Math.atan2(py, px);
-    ctx.arc(pL.x, pL.y, rL, startAngleL, endAngleL, false);
-    ctx.stroke();
-
     ctx.beginPath();
     const startAngleR = Math.atan2(py, px);
     const endAngleR = Math.atan2(-py, -px);
-    ctx.arc(pR.x, pR.y, rR, startAngleR, endAngleR, false);
+    const startAngleL = Math.atan2(-py, -px);
+    const endAngleL = Math.atan2(py, px);
+
+    ctx.moveTo(pL_top.x, pL_top.y);
+    ctx.lineTo(pR_top.x, pR_top.y);
+    ctx.arc(pR.x, pR.y, rR, startAngleR, endAngleR, false); // Top to bot
+    ctx.lineTo(pL_bot.x, pL_bot.y);
+    ctx.arc(pL.x, pL.y, rL, startAngleL, endAngleL, false); // Bot to top
+    ctx.closePath();
+
+    // Base thick dark rubber belt
+    ctx.lineWidth = isSelected ? 7 : 5;
+    ctx.strokeStyle = isSelected ? "rgba(255, 255, 255, 0.95)" : "rgba(30, 41, 59, 0.9)";
     ctx.stroke();
 
-    const animOffset = ((gear.beltAnimationOffset || 0) % 12 + 12) % 12;
-    const linkSpacing = 12;
-    const rollerCount = Math.floor(dist / linkSpacing);
+    // Animated dashed line to simulate chain links or timing belt teeth
+    const period = 10;
+    const animOffset = ((gear.beltAnimationOffset || 0) % period + period) % period;
     
-    ctx.fillStyle = isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.5)";
-    for (let i = 0; i <= rollerCount; i++) {
-        const offset = animOffset + i * linkSpacing;
-        if (offset < dist) {
-            const t = offset / dist;
-            const rx = pL_top.x * (1 - t) + pR_top.x * t;
-            const ry = pL_top.y * (1 - t) + pR_top.y * t;
-            ctx.beginPath();
-            ctx.arc(rx, ry, 2, 0, 2 * Math.PI);
-            ctx.fill();
-
-            const bx = pR_bot.x * (1 - t) + pL_bot.x * t;
-            const by = pR_bot.y * (1 - t) + pL_bot.y * t;
-            ctx.beginPath();
-            ctx.arc(bx, by, 2, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-    }
+    ctx.setLineDash([4, 6]);
+    ctx.lineDashOffset = -animOffset;
+    ctx.lineWidth = isSelected ? 3 : 2;
+    ctx.strokeStyle = isSelected ? "rgba(30, 41, 59, 0.8)" : "rgba(148, 163, 184, 0.85)";
+    ctx.stroke();
+    
+    // Reset dashes
+    ctx.setLineDash([]);
 }
 
 function getAnchorWorldPos(obj, localAnchor) {
@@ -1460,5 +1867,17 @@ function drawSelectionHighlight() {
             (aabb.max.x - aabb.min.x) + 12,
             (aabb.max.y - aabb.min.y) + 12
         );
+    }
+}
+
+function syncZoomControlsPosition() {
+    const panel = document.getElementById("panel-inspector");
+    const zoomControls = document.getElementById("zoom-controls");
+    if (zoomControls && panel) {
+        if (panel.classList.contains("collapsed")) {
+            zoomControls.classList.add("panel-inspector-collapsed");
+        } else {
+            zoomControls.classList.remove("panel-inspector-collapsed");
+        }
     }
 }

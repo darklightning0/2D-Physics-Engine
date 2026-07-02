@@ -1,0 +1,17 @@
+# C++ build artifacts
+build/
+.cache/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+libPhysicsEngineCore.a
+PhysicsEngine
+
+# Emscripten SDK and WebAssembly outputs
+emsdk/
+PhysicsEngineUI/physics.js
+PhysicsEngineUI/physics.wasm
+
+# OS files
+.DS_Store

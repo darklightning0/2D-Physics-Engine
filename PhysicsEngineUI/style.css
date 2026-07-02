@@ -583,3 +583,278 @@ label input[type="number"]:focus {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
+
+/* Zoom Controls Overlay */
+#zoom-controls {
+    position: absolute;
+    right: 360px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 10;
+    transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#zoom-controls.panel-inspector-collapsed {
+    right: 20px;
+}
+
+#zoom-controls.drawer-expanded {
+    bottom: 315px; /* Shifts up to avoid the expanded spawn library drawer */
+}
+
+.zoom-btn {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    color: var(--text-primary);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.zoom-btn:active {
+    transform: translateY(0);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+/* Unified Slide-Up Spawnables Drawer */
+#spawnables-drawer {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(290px); /* Height of the panel content block */
+    width: 680px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 11;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#spawnables-drawer.expanded {
+    transform: translateX(-50%) translateY(0);
+}
+
+#btn-spawnables-toggle {
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    padding: 8px 24px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s;
+    font-family: var(--font-sans);
+}
+
+#btn-spawnables-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#btn-spawnables-toggle.active {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.drawer-panel {
+    width: 100%;
+    height: 290px;
+    background: var(--card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.spawn-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 8px;
+}
+
+.spawn-menu-header h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: var(--text-primary);
+}
+
+.spawn-menu-content {
+    display: grid;
+    grid-template-columns: 110px 1fr 230px;
+    gap: 16px;
+    height: calc(100% - 40px);
+    overflow: hidden;
+}
+
+/* Category Tabs (Left Column) */
+.spawn-menu-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    padding-right: 10px;
+}
+
+.category-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.category-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.category-tab.active {
+    color: var(--accent-primary);
+    background: rgba(59, 130, 246, 0.1);
+    font-weight: 600;
+}
+
+/* Selector Grid (Middle Column) */
+.spawn-menu-items {
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.spawn-category-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.spawn-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.spawn-card:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.spawn-card.active {
+    border-color: var(--accent-primary);
+    background: rgba(59, 130, 246, 0.08);
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+}
+
+.spawn-preview-frame {
+    width: 100%;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.spawn-preview-frame svg {
+    width: 44px;
+    height: 44px;
+}
+
+.spawn-card span {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.spawn-card.active span {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Settings Form (Right Column) */
+.spawn-menu-settings {
+    border-left: 1px solid rgba(255,255,255,0.08);
+    padding-left: 14px;
+    overflow-y: auto;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.settings-grid label {
+    display: flex;
+    flex-direction: column;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.settings-grid input[type="number"] {
+    margin-top: 3px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+

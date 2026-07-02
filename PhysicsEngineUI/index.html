@@ -16,6 +16,13 @@
         <!-- Fullscreen Canvas -->
         <canvas id="physics-canvas"></canvas>
 
+        <!-- Floating Canvas Zoom Controls Overlay -->
+        <div id="zoom-controls">
+            <button id="btn-zoom-in" class="zoom-btn" title="Zoom In">+</button>
+            <button id="btn-zoom-out" class="zoom-btn" title="Zoom Out">−</button>
+            <button id="btn-zoom-reset" class="zoom-btn" title="Reset Zoom" style="font-size: 11px;">1:1</button>
+        </div>
+
         <!-- Floating Left Panel: World Infos & Controls -->
         <aside id="panel-world" class="floating-panel">
             <div class="panel-header">
@@ -110,37 +117,69 @@
                     <div class="inspector-field">
                         <span>Velocity:</span> <span id="inspect-vel">-</span>
                     </div>
+                    <div class="inspector-field">
+                        <span>Ang Velocity:</span> <span id="inspect-angvel">-</span> rad/s
+                    </div>
                     <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px;">
                         <label style="margin: 0;">
                             Mass (kg):
                             <input type="number" id="inspect-mass" step="0.1">
                         </label>
                         <label style="margin: 0;">
+                            Material:
+                            <select id="inspect-material" style="width: 100%; padding: 5px 8px; font-size: 12px; margin-top: 2px; border-radius: 4px; background: rgba(255, 255, 255, 0.04); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.15);">
+                                <option value="0" style="background: #1a1a24;">Default</option>
+                                <option value="1" style="background: #1a1a24;">Wood</option>
+                                <option value="2" style="background: #1a1a24;">Steel</option>
+                                <option value="3" style="background: #1a1a24;">Rubber</option>
+                                <option value="4" style="background: #1a1a24;">Ice</option>
+                                <option value="5" style="background: #1a1a24;">Mud</option>
+                            </select>
+                        </label>
+                        <label style="margin: 0;">
                             Restitution:
                             <input type="number" id="inspect-restitution" min="0" max="1" step="0.05">
                         </label>
                         <label style="margin: 0;">
-                            Friction:
-                            <input type="number" id="inspect-friction" min="0" max="1" step="0.05">
+                            Compression:
+                            <input type="number" id="inspect-compression" step="0.05">
                         </label>
                         <label style="margin: 0;">
-                            Angle (rad):
-                            <input type="number" id="inspect-angle" step="0.1">
+                            Angle (deg):
+                            <input type="number" id="inspect-angle" step="1">
+                        </label>
+                        <label style="margin: 0; display: flex; flex-direction: column;">
+                            <span>Friction:</span>
+                            <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                                <input type="number" id="inspect-friction" min="0" max="1" step="0.05" style="flex: 1; min-width: 0;">
+                                <label style="display: flex; align-items: center; gap: 3px; font-size: 10px; margin: 0; cursor: pointer; white-space: nowrap;">
+                                    <input type="checkbox" id="inspect-friction-auto" style="margin: 0;">
+                                    Auto
+                                </label>
+                            </div>
+                        </label>
+                        <label style="margin: 0;">
+                            Lin. Drag (1/s):
+                            <input type="number" id="inspect-linear-drag" min="0" step="0.01">
+                        </label>
+                        <label style="margin: 0;">
+                            Ang. Drag (1/s):
+                            <input type="number" id="inspect-angular-drag" min="0" step="0.01">
                         </label>
                     </div>
                     <!-- Dimensions -->
                     <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px;">
                         <label id="inspect-radius-lbl" style="margin: 0;">
-                            Radius (px):
-                            <input type="number" id="inspect-radius" step="1">
+                            Radius (m):
+                            <input type="number" id="inspect-radius" step="0.05">
                         </label>
                         <label id="inspect-width-lbl" style="margin: 0;">
-                            Width (px):
-                            <input type="number" id="inspect-width" step="1">
+                            Width (m):
+                            <input type="number" id="inspect-width" step="0.05">
                         </label>
                         <label id="inspect-height-lbl" style="margin: 0;">
-                            Height (px):
-                            <input type="number" id="inspect-height" step="1">
+                            Height (m):
+                            <input type="number" id="inspect-height" step="0.05">
                         </label>
                     </div>
                     <div class="toggle-group-compact" style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
@@ -160,8 +199,25 @@
                             CCD (Fast Bullet)
                         </label>
                     </div>
-                    <!-- Gear Config -->
-                    <div id="inspect-gear-section" class="hidden">
+                    <!-- Gear Geometry Section -->
+                    <div id="inspect-gear-geom-section" class="hidden">
+                        <hr style="margin: 12px 0; border: 0; height: 1px; background: rgba(255,255,255,0.08);">
+                        <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                            <label style="margin: 0;">
+                                Gear Teeth:
+                                <input type="number" id="inspect-gear-teeth" min="3" max="100" step="1">
+                            </label>
+                            <label style="margin: 0;">
+                                Gear Pitch (teeth/m):
+                                <input type="number" id="inspect-gear-pitch" min="0.01" step="0.01">
+                            </label>
+                        </div>
+                        <div class="inspector-field" style="margin-top: 8px; font-size: 11px;">
+                            <span>Pitch Diam (m):</span> <strong id="inspect-gear-pitch-diam">-</strong>
+                        </div>
+                    </div>
+                    <!-- Motor Config -->
+                    <div id="inspect-motor-section" class="hidden">
                         <hr style="margin: 12px 0; border: 0; height: 1px; background: rgba(255,255,255,0.08);">
                         <div class="toggle-group-compact">
                             <label class="toggle-switch" style="margin: 0;">
@@ -171,14 +227,30 @@
                             </label>
                         </div>
                         <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px;">
-                            <label style="margin: 0;">
-                                Motor Speed:
-                                <input type="number" id="inspect-motor-speed" step="0.5">
+                            <label style="margin: 0; display: flex; flex-direction: column;">
+                                <span>Motor Speed (rad/s):</span>
+                                <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                                    <input type="number" id="inspect-motor-speed" step="0.5" style="flex: 1; min-width: 0;">
+                                    <button id="btn-inspect-motor-inv" class="btn" style="padding: 5px 8px; font-size: 11px; margin: 0; cursor: pointer;">Inv</button>
+                                </div>
                             </label>
                             <label style="margin: 0;">
-                                Max Torque:
+                                Max Torque (N·m):
                                 <input type="number" id="inspect-motor-torque" step="1">
                             </label>
+                        </div>
+                    </div>
+                    <!-- Color Swatches -->
+                    <div style="margin-top: 14px;">
+                        <span style="font-size: 11px; color: var(--text-secondary);">Apply Color Swatches:</span>
+                        <div class="color-swatches" style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">
+                            <button class="color-swatch" data-color="#FF0000" style="background-color: #FF0000; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="color-swatch" data-color="#00FF00" style="background-color: #00FF00; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="color-swatch" data-color="#0000FF" style="background-color: #0000FF; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="color-swatch" data-color="#FFFF00" style="background-color: #FFFF00; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="color-swatch" data-color="#FF00FF" style="background-color: #FF00FF; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="color-swatch" data-color="#00FFFF" style="background-color: #00FFFF; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
+                            <button class="color-swatch" data-color="#FFFFFF" style="background-color: #FFFFFF; width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;"></button>
                         </div>
                     </div>
                 </div>
@@ -189,17 +261,25 @@
                         <span>Joint Type:</span> <strong id="inspect-joint-type">-</strong>
                     </div>
                     <div class="btn-grid-compact" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px;">
-                        <label style="margin: 0;">
-                            Rest Length:
-                            <input type="number" id="inspect-joint-rest" step="1">
+                        <label id="inspect-joint-rest-lbl" style="margin: 0;">
+                            Rest Length (m):
+                            <input type="number" id="inspect-joint-rest" step="0.05">
                         </label>
                         <label id="inspect-joint-stiff-lbl" style="margin: 0;">
-                            Stiffness:
+                            Stiffness (N/m):
                             <input type="number" id="inspect-joint-stiff" step="1">
                         </label>
                         <label id="inspect-joint-damp-lbl" style="margin: 0;">
-                            Damping:
+                            Damping (N·s/m):
                             <input type="number" id="inspect-joint-damp" step="0.1">
+                        </label>
+                        <label id="inspect-joint-freq-lbl" style="margin: 0;">
+                            Frequency (Hz):
+                            <input type="number" id="inspect-joint-freq" min="0" step="0.1">
+                        </label>
+                        <label id="inspect-joint-damp-ratio-lbl" style="margin: 0;">
+                            Damping Ratio:
+                            <input type="number" id="inspect-joint-damp-ratio" min="0" max="2" step="0.05">
                         </label>
                     </div>
                     <div class="toggle-group-compact" style="margin-top: 12px;">
@@ -209,6 +289,22 @@
                             Belt / Chain Style
                         </label>
                     </div>
+                    <!-- Gear/Belt Joint specific info -->
+                    <div id="inspect-joint-gear-details" class="hidden" style="margin-top: 12px;">
+                        <hr style="margin: 12px 0; border: 0; height: 1px; background: rgba(255,255,255,0.08);">
+                        <div class="inspector-field">
+                            <span>Gear A:</span> <strong id="inspect-joint-gear-a">-</strong>
+                        </div>
+                        <div class="inspector-field">
+                            <span>Gear B:</span> <strong id="inspect-joint-gear-b">-</strong>
+                        </div>
+                        <div class="inspector-field">
+                            <span>Ratio (A/B):</span> <strong id="inspect-joint-gear-ratio">-</strong>
+                        </div>
+                        <div class="inspector-field">
+                            <span>State:</span> <strong id="inspect-joint-gear-state">-</strong>
+                        </div>
+                    </div>
                 </div>
 
                 <hr style="margin: 18px 0; border: 0; height: 1px; background: rgba(255,255,255,0.08);">
@@ -217,70 +313,212 @@
         </aside>
         <button id="btn-inspector-toggle" class="panel-toggle-btn collapsed">&rarr;</button>
 
-        <!-- Floating Bottom Panel: Spawnables & Customizer Drawer -->
-        <div id="panel-spawnables" class="floating-panel">
-            <div class="spawnables-bar">
-                <button id="btn-select-mode" class="btn active">Select</button>
-                <div class="divider"></div>
-                <button id="spawn-circle" class="btn">Circle</button>
-                <button id="spawn-rect" class="btn">Rectangle</button>
-                <button id="spawn-polygon" class="btn">Polygon</button>
-                <button id="spawn-gear" class="btn">Gear</button>
-                <div class="divider"></div>
-                <button id="btn-link-distance" class="btn">Distance Joint</button>
-                <button id="btn-link-spring" class="btn">Spring Joint</button>
-                <button id="btn-link-gear" class="btn">Gear Mesh</button>
-                <div class="divider"></div>
-                <button id="btn-toggle-settings" class="btn">Settings &uarr;</button>
-            </div>
-
-            <!-- Expandable Spawner Parameters Drawer -->
-            <div id="spawn-settings-drawer" class="drawer">
-                <div class="drawer-content">
-                    <div class="drawer-grid">
-                        <label style="margin: 0;">
-                            Mass (kg):
-                            <input type="number" id="spawn-mass" value="1.5" step="0.1">
-                        </label>
-                        <label style="margin: 0;">
-                            Restitution:
-                            <input type="number" id="spawn-restitution" min="0" max="1" step="0.05" value="0.2">
-                        </label>
-                        <label style="margin: 0;">
-                            Friction:
-                            <input type="number" id="spawn-friction" min="0" max="1" step="0.05" value="0.6">
-                        </label>
-                        <label style="margin: 0;">
-                            Color:
-                            <input type="color" id="spawn-color" value="#3b82f6" style="padding: 0; height: 32px; border: none; cursor: pointer;">
-                        </label>
-                        <label class="toggle-switch" style="margin: 0; align-self: center; grid-column: span 2;">
-                            <input type="checkbox" id="spawn-static">
-                            <span class="slider"></span>
-                            Static (Infinite Mass)
-                        </label>
+        <!-- Unified Slide-Up Spawnables Drawer -->
+        <div id="spawnables-drawer" class="collapsed">
+            <!-- Handle toggle button on the top edge -->
+            <button id="btn-spawnables-toggle">Spawnables</button>
+            
+            <div class="drawer-panel">
+                <div class="spawn-menu-header">
+                    <h3>Spawn Library</h3>
+                    <button id="btn-spawn-menu-close" class="close-btn">&times;</button>
+                </div>
+                <div class="spawn-menu-content">
+                    <!-- Left Pane: Vertical Category Tabs -->
+                    <div class="spawn-menu-categories">
+                        <button class="category-tab active" data-category="shapes">Shapes</button>
+                        <button class="category-tab" data-category="mechanical">Mechanical</button>
+                        <button class="category-tab" data-category="joints">Joints</button>
                     </div>
 
-                    <!-- Spawner Gear configs -->
-                    <div id="gear-parameters" class="hidden" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px;">
-                        <div class="drawer-grid">
-                            <label style="margin: 0;">
-                                Teeth Count:
-                                <input type="number" id="gear-teeth" value="16" min="8" max="64" step="1">
-                            </label>
-                            <label style="margin: 0;">
-                                Diametral Pitch:
-                                <input type="number" id="gear-pitch" value="0.15" step="0.01">
-                            </label>
-                            <label style="margin: 0;">
-                                Motor Speed:
-                                <input type="number" id="gear-motor-speed" value="2.0" step="0.5">
-                            </label>
-                            <label class="toggle-switch" style="margin: 0; align-self: center;">
-                                <input type="checkbox" id="gear-motor">
-                                <span class="slider"></span>
-                                Motor Drive
-                            </label>
+                    <!-- Middle Pane: Grid of Card Elements per Category -->
+                    <div class="spawn-menu-items">
+                        <!-- Category: Shapes -->
+                        <div class="spawn-category-group" id="group-shapes">
+                            <div class="spawn-card" data-mode="spawn-circle">
+                                <div class="spawn-preview-frame">
+                                    <svg viewBox="0 0 60 60">
+                                        <circle cx="30" cy="30" r="18" stroke="#3b82f6" stroke-width="3" fill="rgba(59,130,246,0.15)" />
+                                        <line x1="30" y1="30" x2="48" y2="30" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" />
+                                        <circle cx="30" cy="30" r="4" fill="#3b82f6" />
+                                    </svg>
+                                </div>
+                                <span>Circle</span>
+                            </div>
+                            <div class="spawn-card" data-mode="spawn-rect">
+                                <div class="spawn-preview-frame">
+                                    <svg viewBox="0 0 60 60">
+                                        <rect x="12" y="18" width="36" height="24" rx="4" stroke="#8b5cf6" stroke-width="3" fill="rgba(139,92,246,0.15)" />
+                                    </svg>
+                                </div>
+                                <span>Rectangle</span>
+                            </div>
+                            <div class="spawn-card" data-mode="spawn-poly">
+                                <div class="spawn-preview-frame">
+                                    <svg viewBox="0 0 60 60">
+                                        <polygon points="30,12 48,25 41,46 19,46 12,25" stroke="#ec4899" stroke-width="3" fill="rgba(236,72,153,0.15)" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                                <span>Polygon</span>
+                            </div>
+                        </div>
+
+                        <!-- Category: Mechanical -->
+                        <div class="spawn-category-group hidden" id="group-mechanical">
+                            <div class="spawn-card" data-mode="spawn-gear">
+                                <div class="spawn-preview-frame">
+                                    <svg viewBox="0 0 60 60">
+                                        <!-- Outer teeth -->
+                                        <circle cx="30" cy="30" r="14" fill="none" stroke="#10b981" stroke-width="5" stroke-dasharray="5.5 5.5" />
+                                        <!-- Solid body -->
+                                        <circle cx="30" cy="30" r="11" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="3" />
+                                        <!-- Inner shaft hole -->
+                                        <circle cx="30" cy="30" r="4" fill="#0d0e12" stroke="#10b981" stroke-width="3" />
+                                    </svg>
+                                </div>
+                                <span>Gear</span>
+                            </div>
+                        </div>
+
+                        <!-- Category: Joints -->
+                        <div class="spawn-category-group hidden" id="group-joints">
+                            <div class="spawn-card" data-mode="link-distance">
+                                <div class="spawn-preview-frame">
+                                    <svg viewBox="0 0 60 60">
+                                        <line x1="16" y1="44" x2="44" y2="16" stroke="#f59e0b" stroke-width="3.5" stroke-linecap="round" />
+                                        <circle cx="16" cy="44" r="5" stroke="#f59e0b" stroke-width="2" fill="#0d0e12" />
+                                        <circle cx="44" cy="16" r="5" stroke="#f59e0b" stroke-width="2" fill="#0d0e12" />
+                                    </svg>
+                                </div>
+                                <span>Distance Joint</span>
+                            </div>
+                            <div class="spawn-card" data-mode="link-spring">
+                                <div class="spawn-preview-frame">
+                                    <svg viewBox="0 0 60 60">
+                                        <path d="M 12,30 L 18,30 L 22,18 L 27,42 L 32,18 L 37,42 L 42,18 L 45,30 L 48,30" stroke="#f43f5e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                                        <circle cx="12" cy="30" r="5" stroke="#f43f5e" stroke-width="2.5" fill="#0d0e12" />
+                                        <circle cx="48" cy="30" r="5" stroke="#f43f5e" stroke-width="2.5" fill="#0d0e12" />
+                                    </svg>
+                                </div>
+                                <span>Spring Joint</span>
+                            </div>
+                            <div class="spawn-card" data-mode="link-gear">
+                                <div class="spawn-preview-frame">
+                                    <svg viewBox="0 0 60 60">
+                                        <!-- Left Gear (Blue) -->
+                                        <circle cx="21" cy="30" r="10" fill="none" stroke="#3b82f6" stroke-width="4" stroke-dasharray="3.93 3.93" />
+                                        <circle cx="21" cy="30" r="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="2" />
+                                        <circle cx="21" cy="30" r="3" fill="#0d0e12" stroke="#3b82f6" stroke-width="2" />
+                                        
+                                        <!-- Right Gear (Green) -->
+                                        <circle cx="39" cy="30" r="10" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="3.93 3.93" stroke-dashoffset="3.93" />
+                                        <circle cx="39" cy="30" r="8" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="2" />
+                                        <circle cx="39" cy="30" r="3" fill="#0d0e12" stroke="#10b981" stroke-width="2" />
+                                        
+                                        <!-- Contact Point -->
+                                        <circle cx="30" cy="30" r="2.5" fill="#ef4444" />
+                                    </svg>
+                                </div>
+                                <span>Gear Mesh</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Pane: Dynamic Config Settings -->
+                    <div class="spawn-menu-settings">
+                        <h4 id="spawn-settings-title" style="margin-top: 0; margin-bottom: 12px; color: var(--text-primary); font-size: 13px; font-weight: 600;">Circle Settings</h4>
+                        
+                        <!-- Pane: Shape settings (Circle, Rectangle, Polygon) -->
+                        <div id="pane-shape-settings">
+                            <div class="settings-grid">
+                                <label>
+                                    Mass (kg):
+                                    <input type="number" id="spawn-mass" value="1.5" step="0.1">
+                                </label>
+                                <label>
+                                    Restitution:
+                                    <input type="number" id="spawn-restitution" min="0" max="1" step="0.05" value="0.2">
+                                </label>
+                                <label>
+                                    Friction:
+                                    <input type="number" id="spawn-friction" min="0" max="1" step="0.05" value="0.6">
+                                </label>
+                                <label>
+                                    Color:
+                                    <input type="color" id="spawn-color" value="#3b82f6" style="padding: 0; height: 32px; border: none; cursor: pointer; background: transparent;">
+                                </label>
+                                
+                                <!-- Dynamic Polygon sides configuration (Hidden unless Polygon is active) -->
+                                <div id="poly-only-settings" class="hidden" style="grid-column: span 2; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+                                    <label style="margin: 0; display: flex; flex-direction: column;">
+                                        Polygon Sides:
+                                        <input type="number" id="spawn-poly-sides" value="5" min="3" max="12" step="1">
+                                    </label>
+                                </div>
+                            </div>
+                            <div style="margin-top: 12px;">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="spawn-static">
+                                    <span class="slider"></span>
+                                    Static (Infinite Mass)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Pane: Gear specific settings -->
+                        <div id="pane-gear-settings" class="hidden">
+                            <div class="settings-grid">
+                                <label>
+                                    Teeth Count:
+                                    <input type="number" id="gear-teeth" value="16" min="8" max="64" step="1">
+                                </label>
+                                <label>
+                                    Diametral Pitch (teeth/m):
+                                    <input type="number" id="gear-pitch" value="0.15" step="0.01">
+                                </label>
+                                <label>
+                                    Motor Speed (rad/s):
+                                    <input type="number" id="gear-motor-speed" value="2.0" step="0.5">
+                                </label>
+                            </div>
+                            <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="gear-motor">
+                                    <span class="slider"></span>
+                                    Motor Drive
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Pane: Joint specific settings -->
+                        <div id="pane-joint-settings" class="hidden">
+                            <div id="joint-distance-params" class="settings-grid">
+                                <label>
+                                    Frequency (Hz):
+                                    <input type="number" id="spawn-joint-freq" value="2.0" min="0" step="0.1">
+                                </label>
+                                <label>
+                                    Damping Ratio:
+                                    <input type="number" id="spawn-joint-damp-ratio" value="0.7" min="0" max="2" step="0.05">
+                                </label>
+                            </div>
+                            <div id="joint-spring-params" class="settings-grid hidden">
+                                <label>
+                                    Stiffness (N/m):
+                                    <input type="number" id="spawn-joint-stiff" value="30.0" step="1">
+                                </label>
+                                <label>
+                                    Damping (N·s/m):
+                                    <input type="number" id="spawn-joint-damp" value="1.5" step="0.1">
+                                </label>
+                            </div>
+                            <div id="joint-gear-params" style="margin-top: 8px;" class="hidden">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="spawn-joint-isbelt">
+                                    <span class="slider"></span>
+                                    Belt / Chain Style
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
