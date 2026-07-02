@@ -137,7 +137,6 @@ function setupEventHandlers() {
     document.getElementById("btn-step").addEventListener("click", () => {
         if (!isPlaying && world) {
             world.update(0.016, solverIterations);
-            world.updateBeltSpans(0.016);
             render();
         }
     });
@@ -532,6 +531,7 @@ function getObjectAt(pos) {
     const list = world.getObjects();
     for (let i = 0; i < list.size(); ++i) {
         const obj = list.get(i);
+        if (obj.isBeltSpan) continue;
         if (obj.type === 0) { // circle
             const d = Math.hypot(obj.position.x - pos.x, obj.position.y - pos.y);
             if (d <= obj.radius) return obj;
@@ -1028,7 +1028,6 @@ function loop(timestamp) {
             }
 
             world.update(targetDt, solverIterations);
-            world.updateBeltSpans(targetDt);
 
             if (isDraggingBody && selectedObj) {
                 selectedObj.isStatic = wasStatic;
@@ -1104,6 +1103,7 @@ function drawObjects() {
     const list = world.getObjects();
     for (let i = 0; i < list.size(); ++i) {
         const obj = list.get(i);
+        if (obj.isBeltSpan) continue;
         
         ctx.fillStyle = `rgba(${obj.color.r}, ${obj.color.g}, ${obj.color.b}, 0.75)`;
         ctx.strokeStyle = `rgb(${obj.color.r}, ${obj.color.g}, ${obj.color.b})`;
@@ -1309,7 +1309,7 @@ function drawBelttangents(gear, isSelected) {
     ctx.arc(pR.x, pR.y, rR, startAngleR, endAngleR, false);
     ctx.stroke();
 
-    const animOffset = (performance.now() * 0.05) % 12;
+    const animOffset = ((gear.beltAnimationOffset || 0) % 12 + 12) % 12;
     const linkSpacing = 12;
     const rollerCount = Math.floor(dist / linkSpacing);
     
